@@ -51,7 +51,7 @@ def run_backtest(
     ``signal`` values are in {-1, 0, +1} and must already be lookahead-safe
     (i.e., the strategy has shifted them).
     """
-    cfg = config or BacktestConfig()
+    cfg = config or BacktestConfig()  # type: ignore[call-arg]
     if "adj_close" in ohlcv.columns:
         price = ohlcv["adj_close"].astype("float64")
     else:
@@ -92,7 +92,7 @@ def run_backtest(
     # Keep math simple for Phase 1.
     strategy_ret = pos * asset_ret - cost_drag
 
-    equity = (1.0 + strategy_ret).cumprod() * cfg.initial_cash
+    equity = (1.0 + strategy_ret).cumprod() * float(cfg.initial_cash)
     equity.name = "equity"
 
     trades = _extract_trades(pos, price)
