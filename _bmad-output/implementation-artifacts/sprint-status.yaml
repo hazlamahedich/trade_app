@@ -1,11 +1,11 @@
 # generated: 2026-04-24
-# last_updated: 2026-04-25
+# last_updated: 2026-04-26
 # project: trade_advisor
 # project_key: NOKEY
 # tracking_system: file-system
 # story_location: _bmad-output/implementation-artifacts
 
-# STATUS DEFINITIONS:
+# STATUS DEFINITIONS
 # ==================
 # Epic Status:
 #   - backlog: Epic not yet started
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-25
+last_updated: 2026-04-26
 project: trade_advisor
 project_key: NOKEY
 tracking_system: file-system
@@ -45,7 +45,7 @@ development_status:
   # Epic 1: Project Foundation & Data Access
   epic-1: in-progress
   1-1-project-scaffolding-quality-infrastructure: done
-  1-2-core-type-system-error-taxonomy: backlog
+  1-2-core-type-system-error-taxonomy: done
   1-3-configuration-secure-key-storage: backlog
   1-4-duckdb-infrastructure-seed-hierarchy: backlog
   1-5-data-provider-interface-yahoo-finance: backlog

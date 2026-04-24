@@ -7,6 +7,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 
+from trade_advisor.core.logging import configure_logging as _configure_logging
+
 # Paths
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_CACHE_DIR = PROJECT_ROOT / "data_cache"
@@ -58,9 +60,5 @@ class BacktestConfig(BaseModel):
     freq: str = "1D"
 
 
-def setup_logging(level: int = logging.INFO) -> None:
-    logging.basicConfig(
-        level=level,
-        format="%(asctime)s %(levelname)-7s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+def setup_logging(level: int = logging.INFO, json_logs: bool = False) -> None:
+    _configure_logging(level=level, json_logs=json_logs)

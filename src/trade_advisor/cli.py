@@ -24,8 +24,11 @@ log = logging.getLogger("trade_advisor.cli")
 
 
 @app.callback()
-def _root(verbose: bool = typer.Option(False, "--verbose", "-v")) -> None:
-    setup_logging(logging.DEBUG if verbose else logging.INFO)
+def _root(
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+    json_logs: bool = typer.Option(False, "--json-logs", help="Use JSON log output"),
+) -> None:
+    setup_logging(logging.DEBUG if verbose else logging.INFO, json_logs=json_logs)
 
 
 @app.command()

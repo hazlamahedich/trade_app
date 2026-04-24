@@ -5,6 +5,15 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+import structlog
+
+
+@pytest.fixture(autouse=True)
+def _reset_structlog():
+    """Reset structlog configuration before each test."""
+    structlog.reset_defaults()
+    yield
+    structlog.reset_defaults()
 
 
 def _synthetic_ohlcv(
