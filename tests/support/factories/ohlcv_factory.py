@@ -4,6 +4,7 @@ Usage:
     from tests.support.factories.ohlcv_factory import make_ohlcv
     df = make_ohlcv(n=200, symbol="AAPL")
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -28,18 +29,20 @@ def make_ohlcv(
     low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
     volume = rng.integers(1_000_000, 5_000_000, size=n)
 
-    return pd.DataFrame({
-        "symbol": symbol,
-        "interval": interval,
-        "timestamp": dates,
-        "open": open_,
-        "high": high,
-        "low": low,
-        "close": close,
-        "adj_close": close,
-        "volume": volume,
-        "source": "synthetic",
-    })
+    return pd.DataFrame(
+        {
+            "symbol": symbol,
+            "interval": interval,
+            "timestamp": dates,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "adj_close": close,
+            "volume": volume,
+            "source": "synthetic",
+        }
+    )
 
 
 def make_signals(

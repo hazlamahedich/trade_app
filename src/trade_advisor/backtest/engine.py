@@ -11,6 +11,7 @@ Model assumptions:
 - Costs charged on turnover: commission_pct * |delta_position| * price + slippage.
 - No leverage, no fractional borrowing interest.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -31,11 +32,13 @@ class BacktestResult:
     meta: dict = field(default_factory=dict)
 
     def to_frame(self) -> pd.DataFrame:
-        return pd.DataFrame({
-            "equity": self.equity,
-            "returns": self.returns,
-            "position": self.positions,
-        })
+        return pd.DataFrame(
+            {
+                "equity": self.equity,
+                "returns": self.returns,
+                "position": self.positions,
+            }
+        )
 
 
 def run_backtest(
@@ -60,6 +63,12 @@ def run_backtest(
     sig.index = ts
     sig = sig.reindex(price.index).fillna(0).astype("int8")
 
+    allowed = {-1, 0, 1}
+    unique_vals = set(sig.unique())
+    invalid = unique_vals - allowed
+    if invalid:
+        raise ValueError(f"Signal contains invalid values {invalid}; must be in {{-1, 0, +1}}")
+
     # Bar-to-bar asset returns
     asset_ret = price.pct_change().fillna(0.0)
 
@@ -69,6 +78,11 @@ def run_backtest(
 
     # Per-bar cost as a return drag.
     # Commission charged on notional turned over; slippage same.
+    # TODO: cost_drag = delta * cost_pct computes drag proportional to
+    # position change, not to position notional. The error is O(cost²)
+    # — negligible for retail equity costs (0-10bps) but incorrect for
+    # high-cost instruments. Proper fix requires equity-curve tracking
+    # and belongs in the engine refactor (Epic 2+).
     cost_pct = cfg.cost.commission_pct + cfg.cost.slippage_pct
     cost_drag = delta * cost_pct  # fractional return lost
 
@@ -95,8 +109,11 @@ def run_backtest(
 
 def _extract_trades(pos: pd.Series, price: pd.Series) -> pd.DataFrame:
     """Extract discrete trade records from a position series."""
-    changes = pos.diff().fillna(pos.iloc[0])
-    events = changes[changes != 0]
+    if pos.empty:
+        return pd.DataFrame(
+            columns=["entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return"]
+        )
+
     records: list[dict] = []
     current_side: int = 0
     entry_ts = None
@@ -104,28 +121,37 @@ def _extract_trades(pos: pd.Series, price: pd.Series) -> pd.DataFrame:
 
     for ts, new_pos in pos.items():
         new_side = int(np.sign(new_pos))
-        if new_side != current_side:
-            # Close the previous position, if any.
-            if current_side != 0 and entry_ts is not None:
-                exit_px = float(price.loc[ts])
-                ret = (exit_px / entry_price - 1.0) * current_side
-                records.append({
+        if new_side == current_side:
+            continue
+        if current_side != 0 and entry_ts is not None:
+            exit_px = float(price.at[ts])
+            ret = (exit_px / entry_price - 1.0) * current_side
+            records.append(
+                {
                     "entry_ts": entry_ts,
                     "exit_ts": ts,
                     "side": current_side,
                     "entry_price": entry_price,
                     "exit_price": exit_px,
                     "return": ret,
-                })
-            # Open a new position, if nonzero.
-            if new_side != 0:
-                entry_ts = ts
-                entry_price = float(price.loc[ts])
-            else:
-                entry_ts = None
-                entry_price = np.nan
-            current_side = new_side
+                }
+            )
+        if new_side != 0:
+            entry_ts = ts
+            entry_price = float(price.at[ts])
+        else:
+            entry_ts = None
+            entry_price = np.nan
+        current_side = new_side
 
-    return pd.DataFrame.from_records(records, columns=[
-        "entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return",
-    ])
+    return pd.DataFrame.from_records(
+        records,
+        columns=[
+            "entry_ts",
+            "exit_ts",
+            "side",
+            "entry_price",
+            "exit_price",
+            "return",
+        ],
+    )

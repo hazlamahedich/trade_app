@@ -6,11 +6,12 @@ Layout:
 Incremental updates: if a cache file exists, we fetch only the range after
 the last cached timestamp and append + dedupe.
 """
+
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -44,6 +45,14 @@ def save_cache(df: pd.DataFrame, symbol: str, interval: str) -> Path:
     return p
 
 
+def _range_covered(cached: pd.DataFrame, start, end) -> bool:
+    first_ts = cached["timestamp"].min()
+    last_ts = cached["timestamp"].max()
+    if start is not None and pd.to_datetime(start, utc=True) < first_ts:
+        return False
+    return not (end is not None and pd.to_datetime(end, utc=True) > last_ts)
+
+
 def get_ohlcv(
     symbol: str,
     start: str | datetime | None = None,
@@ -66,20 +75,26 @@ def get_ohlcv(
         save_cache(fresh, symbol, interval)
         return _slice(fresh, start, end)
 
+    if _range_covered(cached, start, end):
+        log.info("Cache hit for %s; requested range fully covered.", symbol)
+        return _slice(cached, start, end)
+
     last_ts = cached["timestamp"].max()
-    # Fetch one bar before last_ts to be safe against end-of-day re-writes,
-    # then dedupe.
-    incr_start = last_ts.tz_convert("UTC").to_pydatetime() if last_ts.tzinfo else last_ts.to_pydatetime()
+    incr_start = (
+        last_ts.tz_convert("UTC").to_pydatetime() if last_ts.tzinfo else last_ts.to_pydatetime()
+    )
     log.info("Cache hit for %s; incremental fetch from %s", symbol, incr_start)
     try:
         fresh = fetcher(symbol, start=incr_start, end=end, interval=interval)
-    except RuntimeError:
-        log.warning("Incremental fetch returned no rows; using cache as-is.")
-        return _slice(cached, start, end)
+    except RuntimeError as exc:
+        if "no data" in str(exc).lower():
+            log.warning("Incremental fetch returned no rows; using cache as-is.")
+            return _slice(cached, start, end)
+        raise
 
     combined = (
         pd.concat([cached, fresh], ignore_index=True)
-        .drop_duplicates("timestamp")
+        .drop_duplicates(subset=["timestamp"], keep="last")
         .sort_values("timestamp")
         .reset_index(drop=True)
     )
@@ -99,6 +114,7 @@ def _slice(df: pd.DataFrame, start, end) -> pd.DataFrame:
 
 
 # ---------- Validation ----------
+
 
 class DataValidationError(ValueError):
     pass

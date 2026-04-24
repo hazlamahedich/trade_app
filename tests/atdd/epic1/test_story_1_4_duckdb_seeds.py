@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.4.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +35,7 @@ class TestStory14DuckDB:
     def test_duckdb_write_serialization_with_lock(self):
         from trade_advisor.infra.db import get_connection
 
-        conn = get_connection()
+        get_connection()
         write_lock = asyncio.Lock()
         assert write_lock is not None
 
@@ -87,10 +88,7 @@ class TestStory14DuckDB:
         from trade_advisor.infra.db import get_connection
 
         conn = get_connection()
-        cols = {
-            row[0]
-            for row in conn.execute("DESCRIBE experiments").fetchall()
-        }
+        cols = {row[0] for row in conn.execute("DESCRIBE experiments").fetchall()}
         assert "run_id" in cols
         assert "config_hash" in cols
         assert "strategy" in cols
@@ -101,9 +99,15 @@ class TestStory14DuckDB:
         from trade_advisor.infra.db import get_connection
 
         conn = get_connection()
-        cols = {
-            row[0]
-            for row in conn.execute("DESCRIBE ohlcv_cache").fetchall()
-        }
-        for required in ("symbol", "interval", "timestamp", "open", "high", "low", "close", "volume"):
+        cols = {row[0] for row in conn.execute("DESCRIBE ohlcv_cache").fetchall()}
+        for required in (
+            "symbol",
+            "interval",
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+        ):
             assert required in cols, f"ohlcv_cache missing column: {required}"

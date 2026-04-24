@@ -5,6 +5,7 @@ as defined in the architecture spec. All tests are SKIPPED (TDD red phase).
 
 Remove @pytest.mark.skip when implementing Story 1.1.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -22,11 +23,11 @@ class TestStory11ProjectScaffolding:
         pyproject = PROJECT_ROOT / "pyproject.toml"
         assert pyproject.exists()
         content = pyproject.read_text()
-        assert 'requires-python' in content
-        assert '3.11' in content
-        assert 'ruff' in content
-        assert 'mypy' in content
-        assert 'pytest' in content
+        assert "requires-python" in content
+        assert "3.11" in content
+        assert "ruff" in content
+        assert "mypy" in content
+        assert "pytest" in content
 
     @pytest.mark.skip(reason="ATDD red phase — Story 1.1 not implemented")
     def test_pinned_deps_no_upper_unbounded(self):

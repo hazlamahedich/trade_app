@@ -3,6 +3,7 @@
 Long when fast SMA > slow SMA, flat otherwise. Signals are shifted by 1 bar
 to avoid lookahead: the decision for bar t+1 uses only information up to bar t.
 """
+
 from __future__ import annotations
 
 import pandas as pd

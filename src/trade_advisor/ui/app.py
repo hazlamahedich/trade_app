@@ -1,4 +1,5 @@
 """Streamlit dashboard for Quant Trade Advisor — Phase 1 stub."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -20,8 +21,9 @@ st.caption("Phase 1 — SMA crossover backtest. Research tool, not investment ad
 # ---------- Sidebar controls ----------
 with st.sidebar:
     st.header("Run configuration")
-    symbol = st.text_input("Symbol", value="SPY",
-                           help="yfinance ticker. e.g. SPY, AAPL, EURUSD=X, BTC-USD")
+    symbol = st.text_input(
+        "Symbol", value="SPY", help="yfinance ticker. e.g. SPY, AAPL, EURUSD=X, BTC-USD"
+    )
     start = st.text_input("Start date", value="2015-01-01")
     end = st.text_input("End date (blank = today)", value="")
     interval = st.selectbox("Interval", ["1d", "1wk", "1mo"], index=0)
@@ -34,12 +36,15 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Costs")
-    commission_pct = st.number_input("Commission %", min_value=0.0, max_value=0.01,
-                                      value=0.0, step=0.0001, format="%.4f")
-    slippage_pct = st.number_input("Slippage %", min_value=0.0, max_value=0.01,
-                                    value=0.0005, step=0.0001, format="%.4f")
-    initial_cash = st.number_input("Initial cash ($)", min_value=1_000.0,
-                                    value=100_000.0, step=1_000.0)
+    commission_pct = st.number_input(
+        "Commission %", min_value=0.0, max_value=0.01, value=0.0, step=0.0001, format="%.4f"
+    )
+    slippage_pct = st.number_input(
+        "Slippage %", min_value=0.0, max_value=0.01, value=0.0005, step=0.0001, format="%.4f"
+    )
+    initial_cash = st.number_input(
+        "Initial cash ($)", min_value=1_000.0, value=100_000.0, step=1_000.0
+    )
 
     run_btn = st.button("Run backtest", type="primary", use_container_width=True)
 
@@ -50,10 +55,17 @@ def _load(symbol: str, start: str, end: str | None, interval: str) -> pd.DataFra
     return df
 
 
-def _chart(ohlcv: pd.DataFrame, equity: pd.Series, dd: pd.Series,
-           fast_series: pd.Series, slow_series: pd.Series) -> go.Figure:
+def _chart(
+    ohlcv: pd.DataFrame,
+    equity: pd.Series,
+    dd: pd.Series,
+    fast_series: pd.Series,
+    slow_series: pd.Series,
+) -> go.Figure:
     fig = make_subplots(
-        rows=3, cols=1, shared_xaxes=True,
+        rows=3,
+        cols=1,
+        shared_xaxes=True,
         row_heights=[0.5, 0.3, 0.2],
         vertical_spacing=0.04,
         subplot_titles=("Price & SMAs", "Strategy Equity", "Drawdown"),
@@ -61,19 +73,33 @@ def _chart(ohlcv: pd.DataFrame, equity: pd.Series, dd: pd.Series,
     ts = pd.to_datetime(ohlcv["timestamp"])
     price = ohlcv["adj_close"] if "adj_close" in ohlcv.columns else ohlcv["close"]
 
-    fig.add_trace(go.Scatter(x=ts, y=price, name="Price", line=dict(color="#444")), row=1, col=1)
-    fig.add_trace(go.Scatter(x=ts, y=fast_series.values, name=f"SMA {fast}",
-                             line=dict(color="#2E75B6")), row=1, col=1)
-    fig.add_trace(go.Scatter(x=ts, y=slow_series.values, name=f"SMA {slow}",
-                             line=dict(color="#E67E22")), row=1, col=1)
+    fig.add_trace(go.Scatter(x=ts, y=price, name="Price", line={"color": "#444"}), row=1, col=1)
+    fig.add_trace(
+        go.Scatter(x=ts, y=fast_series.values, name=f"SMA {fast}", line={"color": "#2E75B6"}),
+        row=1,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(x=ts, y=slow_series.values, name=f"SMA {slow}", line={"color": "#E67E22"}),
+        row=1,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=equity.index, y=equity.values, name="Equity",
-                             line=dict(color="#2ECC71")), row=2, col=1)
+    fig.add_trace(
+        go.Scatter(x=equity.index, y=equity.values, name="Equity", line={"color": "#2ECC71"}),
+        row=2,
+        col=1,
+    )
 
-    fig.add_trace(go.Scatter(x=dd.index, y=dd.values, name="Drawdown", fill="tozeroy",
-                             line=dict(color="#E74C3C")), row=3, col=1)
+    fig.add_trace(
+        go.Scatter(
+            x=dd.index, y=dd.values, name="Drawdown", fill="tozeroy", line={"color": "#E74C3C"}
+        ),
+        row=3,
+        col=1,
+    )
 
-    fig.update_layout(height=760, showlegend=True, margin=dict(l=40, r=20, t=50, b=40))
+    fig.update_layout(height=760, showlegend=True, margin={"l": 40, "r": 20, "t": 50, "b": 40})
     fig.update_yaxes(tickformat=".0%", row=3, col=1)
     return fig
 
@@ -85,7 +111,7 @@ if run_btn:
 
     try:
         ohlcv = _load(symbol, start, end or None, interval)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         st.error(f"Data fetch failed: {exc}")
         st.stop()
 
@@ -98,14 +124,16 @@ if run_btn:
 
     cfg = BacktestConfig(
         initial_cash=float(initial_cash),
-        cost=CostModel(commission_pct=float(commission_pct),
-                       slippage_pct=float(slippage_pct)),
+        cost=CostModel(
+            commission_pct=float(commission_pct),  # type: ignore[call-arg]
+            slippage_pct=float(slippage_pct),
+        ),
     )
     result = run_backtest(ohlcv, sig, cfg)
     metrics = compute_metrics(result.returns)
 
     # Benchmark: buy & hold
-    price_series = ohlcv["adj_close"] if "adj_close" in ohlcv.columns else ohlcv["close"]
+    price_series = (ohlcv["adj_close"] if "adj_close" in ohlcv.columns else ohlcv["close"]).copy()
     price_series.index = pd.to_datetime(ohlcv["timestamp"])
     bh_ret = price_series.pct_change().fillna(0.0)
     bh_metrics = compute_metrics(bh_ret)

@@ -1,0 +1,129 @@
+# generated: 2026-04-24
+# last_updated: 2026-04-25
+# project: trade_advisor
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: _bmad-output/implementation-artifacts
+
+# STATUS DEFINITIONS:
+# ==================
+# Epic Status:
+#   - backlog: Epic not yet started
+#   - in-progress: Epic actively being worked on
+#   - done: All stories in epic completed
+#
+# Epic Status Transitions:
+#   - backlog → in-progress: Automatically when first story is created (via create-story)
+#   - in-progress → done: Manually when all stories reach 'done' status
+#
+# Story Status:
+#   - backlog: Story only exists in epic file
+#   - ready-for-dev: Story file created in stories folder
+#   - in-progress: Developer actively working on implementation
+#   - review: Ready for code review (via Dev's code-review workflow)
+#   - done: Story completed
+#
+# Retrospective Status:
+#   - optional: Can be completed but not required
+#   - done: Retrospective has been completed
+#
+# WORKFLOW NOTES:
+# ===============
+# - Epic transitions to 'in-progress' automatically when first story is created
+# - Stories can be worked in parallel if team capacity allows
+# - Developer typically creates next story after previous one is 'done' to incorporate learnings
+# - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+
+generated: 2026-04-24
+last_updated: 2026-04-25
+project: trade_advisor
+project_key: NOKEY
+tracking_system: file-system
+story_location: _bmad-output/implementation-artifacts
+
+development_status:
+  # Epic 1: Project Foundation & Data Access
+  epic-1: in-progress
+  1-1-project-scaffolding-quality-infrastructure: done
+  1-2-core-type-system-error-taxonomy: backlog
+  1-3-configuration-secure-key-storage: backlog
+  1-4-duckdb-infrastructure-seed-hierarchy: backlog
+  1-5-data-provider-interface-yahoo-finance: backlog
+  1-6-data-validation-anomaly-detection: backlog
+  1-7-data-explorer-web-page: backlog
+  1-8-cli-data-operations: backlog
+  1-9-composition-root-strategy-protocol: backlog
+  1-10-htmx-preact-bridge-proof-of-concept: backlog
+  1-11-data-migration-framework: backlog
+  epic-1-retrospective: optional
+
+  # Epic 2: Strategy Development & Backtesting
+  epic-2: backlog
+  2-1-built-in-sma-crossover-strategy: backlog
+  2-2-position-sizing-methods: backlog
+  2-3-vectorized-backtest-engine: backlog
+  2-4-event-driven-backtest-engine: backlog
+  2-5-convergence-testing-between-engines: backlog
+  2-6-transaction-cost-engine: backlog
+  2-7-portfolio-trade-level-metrics: backlog
+  2-8-mandatory-baseline-comparison-integrity-checks: backlog
+  2-9-strategy-lab-backtest-viewer-web-pages: backlog
+  2-10-resultcard-emotional-states: backlog
+  2-11-remix-button-auto-suggested-variants: backlog
+  2-12-strategy-reproducibility-deterministic-run-ids: backlog
+  epic-2-retrospective: optional
+
+  # Epic 3: Experiment Tracking & Reproducibility
+  epic-3: backlog
+  3-1-experiment-run-list-detail-view: backlog
+  3-2-experiment-lineage-dag: backlog
+  3-3-comparebridge-split-panel: backlog
+  3-4-run-retrieval-full-reproduction: backlog
+  3-5-ml-based-strategy-signal-bridge: backlog
+  epic-3-retrospective: optional
+
+  # Epic 4: Walk-Forward Validation & Honest Evaluation
+  epic-4: backlog
+  4-1-walk-forward-engine-rolling-anchored-modes: backlog
+  4-2-in-sample-hyperparameter-search-pruning: backlog
+  4-3-oos-evaluation-frozen-parameters: backlog
+  4-4-oos-equity-curve-stitching-efficiency-ratio: backlog
+  4-5-deflated-sharpe-ratio-trial-accounting: backlog
+  4-6-walk-forward-results-web-page: backlog
+  epic-4-retrospective: optional
+
+  # Epic 5: ML Experiment Pipeline
+  epic-5: backlog
+  5-1-feature-library-registry: backlog
+  5-2-point-in-time-feature-validation-leak-detection: backlog
+  5-3-feature-pipeline-dag-materialization: backlog
+  5-4-training-data-construction-boundary-enforcement: backlog
+  5-5-model-training-purged-k-fold-cv: backlog
+  5-6-probability-calibration-uncertainty-estimation: backlog
+  5-7-naive-baseline-comparison-model-evaluation: backlog
+  5-8-feature-importance-stability-analysis: backlog
+  5-9-survivorship-bias-flagging-crypto-data-support: backlog
+  5-10-ml-lab-web-page: backlog
+  epic-5-retrospective: optional
+
+  # Epic 6: Trading Advisory & Risk Dashboard
+  epic-6: backlog
+  6-1-advisory-signal-generation-engine: backlog
+  6-2-portfolio-level-risk-summary: backlog
+  6-3-advisory-provenance-display: backlog
+  6-4-strategy-degradation-warning: backlog
+  6-5-advisory-audit-trail: backlog
+  6-6-advisories-web-page-adaptive-context-rail: backlog
+  6-7-decision-story-export: backlog
+  epic-6-retrospective: optional
+
+  # Epic 7: Polished Dashboard & Export Experience
+  epic-7: backlog
+  7-1-adaptive-context-rail-icon-strip-modes: backlog
+  7-2-adaptive-context-rail-mobile-tablet: backlog
+  7-3-command-palette: backlog
+  7-4-comparebridge-chart-overlay: backlog
+  7-5-first-5-minutes-onboarding: backlog
+  7-6-full-accessibility-compliance: backlog
+  7-7-dashboard-polish-visual-regression-testing: backlog
+  epic-7-retrospective: optional

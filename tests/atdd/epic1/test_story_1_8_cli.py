@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.8.
 """
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -26,19 +27,33 @@ class TestStory18CLI:
     def test_data_fetch_command(self):
         from trade_advisor.cli.commands import app
 
-        mock_df = __import__("pandas").DataFrame({
-            "timestamp": __import__("pandas").date_range("2024-01-01", periods=5, tz="UTC"),
-            "open": [100.0] * 5,
-            "high": [101.0] * 5,
-            "low": [99.0] * 5,
-            "close": [100.5] * 5,
-            "volume": [1e6] * 5,
-            "adj_close": [100.5] * 5,
-            "symbol": "SPY",
-            "interval": "1d",
-        })
+        mock_df = __import__("pandas").DataFrame(
+            {
+                "timestamp": __import__("pandas").date_range("2024-01-01", periods=5, tz="UTC"),
+                "open": [100.0] * 5,
+                "high": [101.0] * 5,
+                "low": [99.0] * 5,
+                "close": [100.5] * 5,
+                "volume": [1e6] * 5,
+                "adj_close": [100.5] * 5,
+                "symbol": "SPY",
+                "interval": "1d",
+            }
+        )
         with patch("trade_advisor.cli.commands.fetch_data", return_value=mock_df):
-            result = runner.invoke(app, ["data", "fetch", "--symbol", "SPY", "--start", "2024-01-01", "--end", "2024-12-31"])
+            result = runner.invoke(
+                app,
+                [
+                    "data",
+                    "fetch",
+                    "--symbol",
+                    "SPY",
+                    "--start",
+                    "2024-01-01",
+                    "--end",
+                    "2024-12-31",
+                ],
+            )
             assert result.exit_code == 0
 
     @pytest.mark.skip(reason="ATDD red phase — Story 1.8 not implemented")

@@ -3,6 +3,7 @@
 Returns a canonical OHLCV DataFrame with UTC timestamps.
 Network access is isolated to this module.
 """
+
 from __future__ import annotations
 
 import logging
@@ -13,8 +14,15 @@ import pandas as pd
 log = logging.getLogger(__name__)
 
 CANONICAL_COLUMNS = [
-    "symbol", "interval", "timestamp",
-    "open", "high", "low", "close", "adj_close", "volume",
+    "symbol",
+    "interval",
+    "timestamp",
+    "open",
+    "high",
+    "low",
+    "close",
+    "adj_close",
+    "volume",
     "source",
 ]
 
@@ -66,14 +74,16 @@ def _normalize(raw: pd.DataFrame, *, symbol: str, interval: str) -> pd.DataFrame
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
 
-    df = df.rename(columns={
-        "Open": "open",
-        "High": "high",
-        "Low": "low",
-        "Close": "close",
-        "Adj Close": "adj_close",
-        "Volume": "volume",
-    })
+    df = df.rename(
+        columns={
+            "Open": "open",
+            "High": "high",
+            "Low": "low",
+            "Close": "close",
+            "Adj Close": "adj_close",
+            "Volume": "volume",
+        }
+    )
 
     required = {"open", "high", "low", "close", "volume"}
     missing = required - set(df.columns)
@@ -83,7 +93,9 @@ def _normalize(raw: pd.DataFrame, *, symbol: str, interval: str) -> pd.DataFrame
     if "adj_close" not in df.columns:
         df["adj_close"] = df["close"]
 
-    df = df.reset_index().rename(columns={df.index.name or "Date": "timestamp", "Date": "timestamp", "Datetime": "timestamp"})
+    df = df.reset_index().rename(
+        columns={df.index.name or "Date": "timestamp", "Date": "timestamp", "Datetime": "timestamp"}
+    )
     # After reset_index the date column may be named 'Date' or 'Datetime'; handle both.
     if "timestamp" not in df.columns:
         # Fall back to whichever datetime-like column exists.

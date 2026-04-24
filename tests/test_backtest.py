@@ -3,6 +3,7 @@
 This is the closest thing to an integration test for Phase 1 that does not
 require a network connection.
 """
+
 from __future__ import annotations
 
 import pandas as pd
@@ -41,8 +42,12 @@ def test_costs_reduce_return(synthetic_ohlcv):
     strat = SmaCross(fast=5, slow=20)
     sig = strat.generate_signals(synthetic_ohlcv)
 
-    no_cost = run_backtest(synthetic_ohlcv, sig,
-                           BacktestConfig(cost=CostModel(commission_pct=0, slippage_pct=0)))
-    with_cost = run_backtest(synthetic_ohlcv, sig,
-                             BacktestConfig(cost=CostModel(commission_pct=0.001, slippage_pct=0.001)))
+    no_cost = run_backtest(
+        synthetic_ohlcv, sig, BacktestConfig(cost=CostModel(commission_pct=0, slippage_pct=0))
+    )
+    with_cost = run_backtest(
+        synthetic_ohlcv,
+        sig,
+        BacktestConfig(cost=CostModel(commission_pct=0.001, slippage_pct=0.001)),
+    )
     assert with_cost.equity.iloc[-1] <= no_cost.equity.iloc[-1]

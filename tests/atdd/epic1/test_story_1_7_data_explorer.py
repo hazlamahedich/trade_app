@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.7.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -19,7 +20,6 @@ class TestStory17DataExplorer:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.7 not implemented")
     def test_data_explorer_returns_html(self):
         from fastapi.testclient import TestClient
-
         from trade_advisor.main import app
 
         client = TestClient(app)
@@ -30,7 +30,6 @@ class TestStory17DataExplorer:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.7 not implemented")
     def test_cached_symbols_listed_with_metadata(self):
         from fastapi.testclient import TestClient
-
         from trade_advisor.main import app
 
         client = TestClient(app)
@@ -48,7 +47,6 @@ class TestStory17DataExplorer:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.7 not implemented")
     def test_symbol_detail_paginated_table(self):
         from fastapi.testclient import TestClient
-
         from trade_advisor.main import app
 
         client = TestClient(app)
@@ -62,7 +60,6 @@ class TestStory17DataExplorer:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.7 not implemented")
     def test_anomaly_flags_visible_with_severity(self):
         from fastapi.testclient import TestClient
-
         from trade_advisor.main import app
 
         client = TestClient(app)
@@ -88,7 +85,6 @@ class TestStory17DataExplorer:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.7 not implemented")
     def test_first_launch_spy_prefetch(self):
         from fastapi.testclient import TestClient
-
         from trade_advisor.main import app
 
         client = TestClient(app)

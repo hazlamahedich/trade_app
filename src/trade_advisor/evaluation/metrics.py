@@ -4,6 +4,7 @@ All metrics assume ``returns`` is a Series of per-bar simple returns.
 ``bars_per_year`` defaults to 252 (US equity trading days). For hourly or
 crypto data, pass the appropriate value.
 """
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
@@ -42,16 +43,30 @@ def compute_metrics(
 
     # CAGR
     years = len(r) / bars_per_year
-    cagr = float(equity.iloc[-1] ** (1 / years) - 1.0) if years > 0 else 0.0
+    final_equity = float(equity.iloc[-1])
+    if not np.isfinite(final_equity):
+        cagr = 0.0
+    elif years > 0 and final_equity > 0:
+        cagr = float(final_equity ** (1 / years) - 1.0)
+    elif years > 0 and final_equity <= 0:
+        cagr = -1.0
+    else:
+        cagr = 0.0
 
     annual_vol = float(r.std(ddof=0) * np.sqrt(bars_per_year))
 
     excess = r - rf / bars_per_year
-    sharpe = float(excess.mean() / r.std(ddof=0) * np.sqrt(bars_per_year)) if r.std(ddof=0) > 0 else 0.0
+    std = r.std(ddof=0)
+    sharpe = float(excess.mean() / std * np.sqrt(bars_per_year)) if std > 1e-12 else 0.0
 
-    downside = r[r < 0]
-    downside_std = float(downside.std(ddof=0)) if len(downside) > 0 else 0.0
-    sortino = float(excess.mean() / downside_std * np.sqrt(bars_per_year)) if downside_std > 0 else 0.0
+    target = rf / bars_per_year
+    downside_diff = np.minimum(r.to_numpy(dtype=np.float64) - target, 0.0)
+    downside_dev = float(np.sqrt(np.mean(downside_diff**2)))
+    sortino = (
+        float(excess.mean() / downside_dev * np.sqrt(bars_per_year))
+        if downside_dev > 1e-12
+        else 0.0
+    )
 
     mdd = float(max_drawdown(equity))
     calmar = float(cagr / abs(mdd)) if mdd < 0 else 0.0

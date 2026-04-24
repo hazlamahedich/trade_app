@@ -1,4 +1,5 @@
 """Streamlit page object for the Quant Trade Advisor dashboard."""
+
 from __future__ import annotations
 
 from playwright.sync_api import Locator, Page

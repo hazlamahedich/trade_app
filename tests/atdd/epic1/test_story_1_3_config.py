@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.3.
 """
+
 from __future__ import annotations
 
 import os
@@ -27,7 +28,6 @@ class TestStory13Configuration:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.3 not implemented")
     def test_app_config_uses_pydantic_base_settings(self):
         from pydantic_settings import BaseSettings
-
         from trade_advisor.core.config import AppConfig
 
         assert issubclass(AppConfig, BaseSettings)

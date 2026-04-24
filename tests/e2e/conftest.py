@@ -4,6 +4,7 @@ Provides:
 - ``streamlit_app``: starts a Streamlit subprocess on a free port
 - ``app_page``: a Playwright Page already navigated to the running app
 """
+
 from __future__ import annotations
 
 import os
@@ -39,11 +40,17 @@ def streamlit_url():
     except Exception:
         proc = subprocess.Popen(
             [
-                "python", "-m", "streamlit", "run",
+                "python",
+                "-m",
+                "streamlit",
+                "run",
                 "src/trade_advisor/ui/app.py",
-                "--server.port", str(_PORT),
-                "--server.headless", "true",
-                "--browser.gatherUsageStats", "false",
+                "--server.port",
+                str(_PORT),
+                "--server.headless",
+                "true",
+                "--browser.gatherUsageStats",
+                "false",
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -1,4 +1,5 @@
 """Typer CLI: `ta fetch`, `ta backtest`, `ta dashboard`."""
+
 from __future__ import annotations
 
 import logging
@@ -67,7 +68,7 @@ def backtest(
 
     cfg = BacktestConfig(
         initial_cash=initial_cash,
-        cost=CostModel(commission_pct=commission_pct, slippage_pct=slippage_pct),
+        cost=CostModel(commission_pct=commission_pct, slippage_pct=slippage_pct),  # type: ignore[call-arg]
     )
     result = run_backtest(df, sig, cfg)
     metrics = compute_metrics(result.returns)
@@ -75,17 +76,19 @@ def backtest(
     _print_metrics(symbol, strat.describe().params, metrics, result.meta)
 
     with mlflow_utils.run(experiment=experiment, run_name=f"{symbol}_sma_{fast}_{slow}"):
-        mlflow_utils.log_params({
-            "symbol": symbol,
-            "interval": interval,
-            "start": start,
-            "end": end or "",
-            "fast": fast,
-            "slow": slow,
-            "allow_short": allow_short,
-            "commission_pct": commission_pct,
-            "slippage_pct": slippage_pct,
-        })
+        mlflow_utils.log_params(
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "start": start,
+                "end": end or "",
+                "fast": fast,
+                "slow": slow,
+                "allow_short": allow_short,
+                "commission_pct": commission_pct,
+                "slippage_pct": slippage_pct,
+            }
+        )
         mlflow_utils.log_metrics(metrics.to_dict())
 
 
@@ -95,7 +98,7 @@ def dashboard() -> None:
     app_path = Path(__file__).parent / "ui" / "app.py"
     cmd = [sys.executable, "-m", "streamlit", "run", str(app_path)]
     console.print(f"[cyan]Launching:[/cyan] {' '.join(cmd)}")
-    subprocess.run(cmd, check=False)  # noqa: S603
+    subprocess.run(cmd, check=False)
 
 
 def _print_metrics(symbol: str, params: dict, metrics, meta: dict) -> None:

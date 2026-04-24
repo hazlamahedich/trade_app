@@ -1,4 +1,5 @@
 """Tests for cache + validators using synthetic data (offline)."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -48,9 +49,11 @@ def test_save_and_load_roundtrip(synthetic_ohlcv):
 def test_get_ohlcv_uses_fetcher_on_miss(fake_fetcher):
     df = get_ohlcv("TEST", start="2020-01-01", interval="1d", fetcher=fake_fetcher)
     assert not df.empty
+
     # Subsequent call should hit cache; pass a fetcher that would raise if used
     def _forbidden(*a, **kw):
         raise AssertionError("should not refetch")
+
     df2 = get_ohlcv("TEST", start="2020-01-01", interval="1d", fetcher=_forbidden)
     assert len(df2) == len(df)
 

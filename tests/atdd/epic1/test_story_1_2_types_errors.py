@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.2.
 """
+
 from __future__ import annotations
 
 from decimal import ROUND_HALF_EVEN, Decimal

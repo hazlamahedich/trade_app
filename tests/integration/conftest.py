@@ -1,4 +1,5 @@
 """Shared pytest fixtures for integration tests (network-dependent)."""
+
 from __future__ import annotations
 
 import pytest

@@ -41,4 +41,6 @@ graphify-out/
 # Playwright
 test-results/
 playwright-report/
-.venv
+.venv/
+
+# uv lockfile is NOT gitignored — it is committed for reproducibility

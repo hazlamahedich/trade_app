@@ -10,6 +10,7 @@ input index. Convention:
 Signals must be computed using ONLY information available at or before each
 timestamp. Any lookahead is a bug.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod

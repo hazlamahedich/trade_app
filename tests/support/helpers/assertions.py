@@ -1,4 +1,5 @@
 """Shared test helpers and utilities."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -9,9 +10,7 @@ def assert_no_lookahead_bias(signals: pd.Series, price: pd.Series) -> None:
     shifted = signals.shift(1)
     correlation = shifted.corr(price.pct_change())
     if not pd.isna(correlation) and abs(correlation) > 0.9:
-        raise AssertionError(
-            f"Signals may have lookahead bias: corr={correlation:.4f}"
-        )
+        raise AssertionError(f"Signals may have lookahead bias: corr={correlation:.4f}")
 
 
 def assert_signals_in_range(signals: pd.Series) -> None:

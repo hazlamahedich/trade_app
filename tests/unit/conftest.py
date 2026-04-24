@@ -2,6 +2,7 @@
 
 Extends the root conftest with additional reusable fixtures.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -26,10 +27,20 @@ def ohlcv_various_sizes(request) -> pd.DataFrame:
 
 @pytest.fixture
 def empty_ohlcv() -> pd.DataFrame:
-    return pd.DataFrame(columns=[
-        "symbol", "interval", "timestamp", "open", "high", "low",
-        "close", "adj_close", "volume", "source",
-    ])
+    return pd.DataFrame(
+        columns=[
+            "symbol",
+            "interval",
+            "timestamp",
+            "open",
+            "high",
+            "low",
+            "close",
+            "adj_close",
+            "volume",
+            "source",
+        ]
+    )
 
 
 @pytest.fixture

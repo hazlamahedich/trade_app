@@ -3,6 +3,7 @@
 Run: pytest tests/e2e/test_dashboard.py --browser chromium
 Requires: streamlit server started automatically by conftest fixture.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -42,4 +43,6 @@ class TestDashboardBacktest:
         dashboard.set_slow_sma(20)
         dashboard.run_button.click()
         dashboard.error_message.wait_for(timeout=10_000)
-        assert "Fast SMA must be strictly less than Slow SMA" in dashboard.error_message.inner_text()
+        assert (
+            "Fast SMA must be strictly less than Slow SMA" in dashboard.error_message.inner_text()
+        )

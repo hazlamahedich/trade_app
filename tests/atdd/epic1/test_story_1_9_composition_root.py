@@ -2,6 +2,7 @@
 
 All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.9.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -49,7 +50,6 @@ class TestStory19CompositionRoot:
     @pytest.mark.skip(reason="ATDD red phase — Story 1.9 not implemented")
     def test_cross_module_imports_use_protocols_only(self):
         """No module imports concrete implementations from another module."""
-        import ast
         from pathlib import Path
 
         src = Path(__file__).resolve().parents[4] / "src" / "trade_advisor"

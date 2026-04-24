@@ -1,4 +1,5 @@
 """Shared pytest fixtures."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -24,18 +25,20 @@ def _synthetic_ohlcv(
     low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
     volume = rng.integers(1_000_000, 5_000_000, size=n)
 
-    df = pd.DataFrame({
-        "symbol": symbol,
-        "interval": "1d",
-        "timestamp": dates,
-        "open": open_,
-        "high": high,
-        "low": low,
-        "close": close,
-        "adj_close": close,
-        "volume": volume,
-        "source": "synthetic",
-    })
+    df = pd.DataFrame(
+        {
+            "symbol": symbol,
+            "interval": "1d",
+            "timestamp": dates,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "adj_close": close,
+            "volume": volume,
+            "source": "synthetic",
+        }
+    )
     return df
 
 
@@ -52,6 +55,7 @@ def short_ohlcv() -> pd.DataFrame:
 @pytest.fixture
 def fake_fetcher():
     """A fetcher callable matching the get_ohlcv signature, returning synthetic data."""
+
     def _f(symbol, start=None, end=None, interval="1d"):
         df = _synthetic_ohlcv(n=500, symbol=symbol)
         if start is not None:
@@ -59,4 +63,5 @@ def fake_fetcher():
         if end is not None:
             df = df[df["timestamp"] < pd.to_datetime(end, utc=True)]
         return df.reset_index(drop=True)
+
     return _f

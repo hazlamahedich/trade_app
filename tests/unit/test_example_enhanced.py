@@ -1,4 +1,5 @@
 """Sample enhanced unit test demonstrating factory usage and parametrize."""
+
 from __future__ import annotations
 
 import numpy as np
