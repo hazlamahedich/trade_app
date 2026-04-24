@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Env
+.venv/
+.env
+
+# Project artifacts
+data_cache/
+mlruns/
+*.db
+
+# macOS resource forks
+._*
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Agent/toolchain state
+.agent/
+.agents/
+.claude/
+.gemini/
+.kilocode/
+.kiro/
+.opencode/
+.serena/
+_bmad/
+_bmad-output/
+graphify-out/
+
+# Playwright
+test-results/
+playwright-report/
+.venv

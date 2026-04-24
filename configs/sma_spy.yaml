@@ -1,0 +1,20 @@
+# Example strategy configuration.
+# Load via: yaml.safe_load(Path(...).read_text())
+strategy:
+  name: sma_cross
+  params:
+    fast: 20
+    slow: 50
+    allow_short: false
+
+universe:
+  symbols: ["SPY"]
+  interval: "1d"
+  start: "2015-01-01"
+  end: null   # null = today
+
+backtest:
+  initial_cash: 100000.0
+  cost:
+    commission_pct: 0.0
+    slippage_pct: 0.0005
