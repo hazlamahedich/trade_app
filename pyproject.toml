@@ -75,6 +75,7 @@ ignore_errors = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers --ignore=tests/e2e"
+asyncio_mode = "auto"
 markers = [
     "integration: requires network access (yfinance, external APIs)",
     "e2e: end-to-end tests requiring full system",

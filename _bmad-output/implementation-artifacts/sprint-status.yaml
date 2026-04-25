@@ -1,5 +1,5 @@
 # generated: 2026-04-24
-# last_updated: 2026-04-26
+# last_updated: 2026-04-25
 # project: trade_advisor
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-26
+last_updated: 2026-04-25
 project: trade_advisor
 project_key: NOKEY
 tracking_system: file-system
@@ -47,7 +47,7 @@ development_status:
   1-1-project-scaffolding-quality-infrastructure: done
   1-2-core-type-system-error-taxonomy: done
   1-3-configuration-secure-key-storage: done
-  1-4-duckdb-infrastructure-seed-hierarchy: backlog
+  1-4-duckdb-infrastructure-seed-hierarchy: done
   1-5-data-provider-interface-yahoo-finance: backlog
   1-6-data-validation-anomaly-detection: backlog
   1-7-data-explorer-web-page: backlog
