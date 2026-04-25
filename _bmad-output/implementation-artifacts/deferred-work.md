@@ -120,3 +120,17 @@ These items were identified during code review but are **pre-existing issues** n
 - **File:** `src/trade_advisor/data/storage.py:108-119`
 - **Issue:** Hardcoded positional indices (row[0]..row[9]) for adj_close overwrite would break silently if _OHLCV_INSERT_COLUMNS order changes
 - **Target:** If column order changes or a more maintainable approach is needed
+
+## Deferred from: code review of 1-6-data-validation-anomaly-detection (2026-04-25)
+
+### DEF-18: `get_data_freshness` architecturally misplaced in validation module
+
+- **File:** `src/trade_advisor/data/validation.py`
+- **Issue:** `get_data_freshness()` is a data-access function living in the validation module; breaks single-responsibility
+- **Target:** Extract to `data/freshness.py` when function grows beyond thin wrapper (per Dev Note §6)
+
+### DEF-19: `quality_mask` semantics confusing (True=error, not True=good)
+
+- **File:** `src/trade_advisor/data/validation.py`
+- **Issue:** `quality_mask` boolean Series uses True to mark ERROR rows, but the name implies True=good quality
+- **Target:** Rename to `error_mask` in refactor sprint; current name matches ATDD test expectations
