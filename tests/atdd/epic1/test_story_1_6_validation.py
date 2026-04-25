@@ -152,14 +152,36 @@ class TestStory16DataValidation:
         assert len(result.anomalies) > 0
         pd.testing.assert_frame_equal(df, original)
 
-    @pytest.mark.skip(reason="Requires DuckDB with pre-inserted data — integration test")
     def test_data_freshness_tracked_per_symbol_interval(self):
-        from trade_advisor.data.validation import get_data_freshness
+        import asyncio
 
-        freshness = get_data_freshness("SPY", "1d")
-        assert hasattr(freshness, "last_updated")
-        assert hasattr(freshness, "symbol")
-        assert hasattr(freshness, "interval")
+        import pandas as pd
+        from trade_advisor.core.config import DatabaseConfig
+        from trade_advisor.data.storage import DataRepository
+        from trade_advisor.infra.db import DatabaseManager
+
+        async def _run():
+            config = DatabaseConfig(path=":memory:", wal_mode=False)
+            async with DatabaseManager(config) as db:
+                repo = DataRepository(db)
+                df = pd.DataFrame({
+                    "timestamp": pd.date_range("2024-01-01", periods=5, tz="UTC"),
+                    "symbol": "SPY", "interval": "1d",
+                    "open": [100.0] * 5, "high": [101.0] * 5,
+                    "low": [99.0] * 5, "close": [100.5] * 5,
+                    "adj_close": [100.5] * 5,
+                    "volume": [1e6] * 5, "source": ["test"] * 5,
+                })
+                await repo.store(df, provider_name="test")
+                freshness = await repo.check_freshness("SPY", "1d")
+                assert hasattr(freshness, "last_updated")
+                assert hasattr(freshness, "symbol")
+                assert hasattr(freshness, "interval")
+                assert freshness.symbol == "SPY"
+                assert freshness.interval == "1d"
+                assert freshness.bar_count == 5
+
+        asyncio.run(_run())
 
     def test_sse_event_models_pydantic_typed(self):
         from trade_advisor.web.sse import ErrorEvent, ProgressEvent, SSEEvent
