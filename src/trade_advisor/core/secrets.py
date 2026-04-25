@@ -17,12 +17,18 @@ log = logging.getLogger("trade_advisor.secrets")
 
 KEYRING_SERVICE = "trade_advisor"
 
-SECRET_KEY_NAMES = ("YAHOO_API_KEY", "ALPHA_VANTAGE_API_KEY", "POLYGON_API_KEY")
+SECRET_KEY_NAMES = (
+    "YAHOO_API_KEY",
+    "ALPHA_VANTAGE_API_KEY",
+    "POLYGON_API_KEY",
+    "TWELVEDATA_API_KEY",
+)
 
 _env_to_field: dict[str, str] = {
     "YAHOO_API_KEY": "yahoo_api_key",
     "ALPHA_VANTAGE_API_KEY": "alpha_vantage_api_key",
     "POLYGON_API_KEY": "polygon_api_key",
+    "TWELVEDATA_API_KEY": "twelvedata_api_key",
 }
 
 
@@ -82,6 +88,7 @@ def load_secrets(env_vars: dict[str, str | None] | None = None) -> SecretsConfig
         yahoo_api_key=result.get("yahoo_api_key"),
         alpha_vantage_api_key=result.get("alpha_vantage_api_key"),
         polygon_api_key=result.get("polygon_api_key"),
+        twelvedata_api_key=result.get("twelvedata_api_key"),
         _secrets_source=sources,
     )
 
@@ -90,6 +97,7 @@ class SecretsConfig(BaseModel):
     yahoo_api_key: SecretStr | None = None
     alpha_vantage_api_key: SecretStr | None = None
     polygon_api_key: SecretStr | None = None
+    twelvedata_api_key: SecretStr | None = None
     _secrets_source: dict[str, str] = {}
 
     def __init__(self, **data: Any) -> None:
@@ -99,7 +107,9 @@ class SecretsConfig(BaseModel):
 
     def get_secret_value(self, field_name: str) -> str | None:
         if field_name not in SecretsConfig.model_fields:
-            raise ValueError(f"Unknown secret field: {field_name}. Valid: {sorted(SecretsConfig.model_fields)}")
+            raise ValueError(
+                f"Unknown secret field: {field_name}. Valid: {sorted(SecretsConfig.model_fields)}"
+            )
         val: SecretStr | None = getattr(self, field_name)
         if val is None:
             return None

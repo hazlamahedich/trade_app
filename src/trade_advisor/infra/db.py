@@ -225,6 +225,16 @@ class DatabaseManager:
         async with self._rw_lock.write():
             await asyncio.to_thread(self._execute, query, params)
 
+    async def write_many(self, query: str, params_list: list[tuple[Any, ...]]) -> None:
+        """Execute a batch write with exclusive access using executemany.
+
+        Wraps the batch in an explicit BEGIN/COMMIT transaction so that all
+        rows are committed atomically or rolled back on failure.
+        """
+        self._require_open()
+        async with self._rw_lock.write():
+            await asyncio.to_thread(self._execute_many, query, params_list)
+
     async def read(
         self, query: str, params: tuple[Any, ...] | None = None
     ) -> list[tuple[Any, ...]]:
@@ -282,6 +292,17 @@ class DatabaseManager:
             else:
                 self._conn.execute(query)
         except duckdb.Error as exc:
+            raise self._map_duckdb_error(exc) from exc
+
+    def _execute_many(self, query: str, params_list: list[tuple[Any, ...]]) -> None:
+        assert self._conn is not None
+        try:
+            self._conn.execute("BEGIN TRANSACTION")
+            self._conn.executemany(query, params_list)
+            self._conn.execute("COMMIT")
+        except duckdb.Error as exc:
+            with contextlib.suppress(duckdb.Error):
+                self._conn.execute("ROLLBACK")
             raise self._map_duckdb_error(exc) from exc
 
     def _execute_read(self, query: str, params: tuple[Any, ...] | None) -> list[tuple[Any, ...]]:
