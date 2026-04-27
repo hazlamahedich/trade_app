@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Quant Trade Advisor{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <style>
+        :root {
+            --healthy: #22c55e;
+            --caution: #f59e0b;
+            --degraded: #ef4444;
+            --informational: #3b82f6;
+            --uncertainty: #8b5cf6;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f9fafb;
+            --bg-card: #ffffff;
+            --text-primary: #111827;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+            --font-data: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+            --radius: 0.5rem;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border-color: #334155;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --bg-primary: #0f172a;
+                --bg-secondary: #1e293b;
+                --bg-card: #1e293b;
+                --text-primary: #f1f5f9;
+                --text-secondary: #94a3b8;
+                --border-color: #334155;
+            }
+        }
+        body { font-family: var(--font-ui); background: var(--bg-primary); color: var(--text-primary); margin: 0; }
+        .tabular-nums { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+        .data-font { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+        nav { background: var(--bg-secondary); border-bottom: 1px solid var(--border-color); padding: 0.75rem 1.5rem; display: flex; align-items: center; gap: 1rem; }
+        nav a { color: var(--text-primary); text-decoration: none; font-weight: 600; }
+        #main-content { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        .badge { padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .badge-healthy { background: var(--healthy); color: #fff; }
+        .badge-caution { background: var(--caution); color: #fff; }
+        .badge-degraded { background: var(--degraded); color: #fff; }
+        .badge-informational { background: var(--informational); color: #fff; }
+        .badge-uncertainty { background: var(--uncertainty); color: #fff; }
+        .card { background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius); box-shadow: var(--shadow-sm); padding: 1rem; margin-bottom: 1rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border-color); }
+        th { font-weight: 600; color: var(--text-secondary); font-size: 0.875rem; }
+        .btn-primary { background: var(--informational); color: #fff; padding: 0.5rem 1rem; border-radius: var(--radius); border: none; cursor: pointer; }
+        .btn-primary:hover { opacity: 0.9; }
+        .spinner { display: inline-block; width: 1.5rem; height: 1.5rem; border: 2px solid var(--border-color); border-top-color: var(--informational); border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error-state { background: rgba(239,68,68,0.1); border: 1px solid var(--degraded); border-radius: var(--radius); padding: 1rem; color: var(--degraded); }
+        #error-container { margin-bottom: 1rem; }
+    </style>
+</head>
+<body>
+    <nav>
+        <a href="/data">Data Explorer</a>
+        <span style="flex:1"></span>
+        <button onclick="toggleTheme()" id="theme-toggle" aria-label="Toggle dark mode" style="background:none;border:none;cursor:pointer;font-size:1.25rem;">
+            &#9788;
+        </button>
+    </nav>
+    <div id="error-container"></div>
+    <div id="main-content">
+        {% block content %}{% endblock %}
+    </div>
+    <script>
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-toggle').textContent = next === 'dark' ? '\u263D' : '\u263C';
+        }
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+                document.getElementById('theme-toggle').textContent = saved === 'dark' ? '\u263D' : '\u263C';
+            }
+        })();
+    </script>
+</body>
+</html>

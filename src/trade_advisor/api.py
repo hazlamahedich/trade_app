@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+import warnings
 
-app = FastAPI(title="Quant Trade Advisor", version="0.1.0")
+from trade_advisor.main import app  # noqa: F401
 
-
-@app.get("/health")
-async def health() -> dict[str, str]:
-    return {"status": "ok"}
+warnings.warn("Use trade_advisor.main instead", DeprecationWarning, stacklevel=2)

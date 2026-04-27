@@ -1,0 +1,33 @@
+{% if symbols %}
+<div id="symbol-list">
+    <h2>Cached Symbols</h2>
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Interval</th>
+                    <th>Bars</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>Last Updated</th>
+                    <th>Price Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in symbols %}
+                <tr>
+                    <td><a href="#" hx-get="/data/symbol/{{ s.symbol }}" hx-target="#symbol-detail" hx-swap="innerHTML" hx-trigger="click">{{ s.symbol }}</a></td>
+                    <td class="data-font tabular-nums">{{ s.interval }}</td>
+                    <td class="data-font tabular-nums">{{ s.bar_count }}</td>
+                    <td class="data-font tabular-nums">{{ s.start_date }}</td>
+                    <td class="data-font tabular-nums">{{ s.end_date }}</td>
+                    <td class="data-font tabular-nums">{{ s.last_updated }}</td>
+                    <td><span class="badge {% if 'Adjusted' in s.adj_label and 'no diff' not in s.adj_label %}badge-informational{% else %}badge-healthy{% endif %}">{{ s.adj_label }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}

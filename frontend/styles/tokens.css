@@ -1,0 +1,119 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --healthy: #22c55e;
+    --caution: #f59e0b;
+    --degraded: #ef4444;
+    --informational: #3b82f6;
+    --uncertainty: #8b5cf6;
+
+    --bg-primary: #ffffff;
+    --bg-secondary: #f9fafb;
+    --bg-card: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --border-color: #e5e7eb;
+
+    --font-ui: "Inter", system-ui, -apple-system, sans-serif;
+    --font-data: "JetBrains Mono", "SF Mono", "Fira Code", monospace;
+
+    --radius: 0.5rem;
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: #1e293b;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --border-color: #334155;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+        --bg-primary: #0f172a;
+        --bg-secondary: #1e293b;
+        --bg-card: #1e293b;
+        --text-primary: #f1f5f9;
+        --text-secondary: #94a3b8;
+        --border-color: #334155;
+    }
+}
+
+body {
+    font-family: var(--font-ui);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.tabular-nums {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+.data-font {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+}
+
+.badge-healthy {
+    background-color: var(--healthy);
+    color: #ffffff;
+}
+
+.badge-caution {
+    background-color: var(--caution);
+    color: #ffffff;
+}
+
+.badge-degraded {
+    background-color: var(--degraded);
+    color: #ffffff;
+}
+
+.badge-informational {
+    background-color: var(--informational);
+    color: #ffffff;
+}
+
+.badge-uncertainty {
+    background-color: var(--uncertainty);
+    color: #ffffff;
+}
+
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+}
+
+.btn-primary {
+    background-color: var(--informational);
+    color: #ffffff;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.spinner {
+    display: inline-block;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--informational);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

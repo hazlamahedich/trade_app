@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Data Explorer — Quant Trade Advisor{% endblock %}
+{% block content %}
+{% if is_empty is defined and is_empty != true and symbols is defined %}
+    {% include "partials/symbol_list.html" %}
+{% elif is_empty is defined and is_empty %}
+    {% include "partials/empty_state.html" %}
+{% elif symbols is defined %}
+    {% include "partials/symbol_list.html" %}
+{% else %}
+    {% include "partials/empty_state.html" %}
+{% endif %}
+<div id="symbol-detail"></div>
+{% endblock %}

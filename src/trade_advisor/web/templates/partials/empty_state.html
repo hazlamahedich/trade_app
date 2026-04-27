@@ -1,0 +1,14 @@
+<div id="empty-state" class="card" style="text-align:center;padding:3rem;">
+    <h2>No cached data</h2>
+    <p style="color:var(--text-secondary);margin-bottom:1.5rem;">Fetch market data to get started.</p>
+    <form hx-post="/data/fetch" hx-target="#symbol-list, #empty-state" hx-swap="outerHTML" hx-indicator="#fetch-spinner">
+        <div style="display:flex;gap:0.5rem;justify-content:center;align-items:center;">
+            <input type="text" name="symbol" value="SPY" placeholder="Symbol (e.g. SPY)"
+                   style="padding:0.5rem;border:1px solid var(--border-color);border-radius:var(--radius);font-family:var(--font-data);width:200px;background:var(--bg-primary);color:var(--text-primary);">
+            <button type="submit" class="btn-primary">Fetch Data</button>
+        </div>
+        <div id="fetch-spinner" class="htmx-indicator" style="margin-top:0.5rem;">
+            <span class="spinner"></span> Fetching...
+        </div>
+    </form>
+</div>

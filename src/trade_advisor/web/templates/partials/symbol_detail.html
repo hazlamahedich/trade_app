@@ -1,0 +1,75 @@
+{% if bars %}
+<div id="symbol-detail-content">
+    <h3>{{ symbol }} — OHLCV Data</h3>
+    {% if anomalies %}
+    <div style="margin-bottom:0.5rem;">
+        {% for a in anomalies %}
+        <span class="badge {% if a.type == 'corporate_action' %}badge-caution{% elif a.severity == 'ERROR' %}badge-degraded{% else %}badge-caution{% endif %}" title="{{ a.label }}">
+            {{ a.label }}
+        </span>
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="card" style="overflow-x:auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Adj Close</th>
+                    <th>Volume</th>
+                    {% if anomalies %}
+                    <th>Flags</th>
+                    {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for bar in bars %}
+                <tr>
+                    <td class="data-font tabular-nums">{{ bar.timestamp }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.open) }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.high) }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.low) }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.close) }}</td>
+                    <td class="data-font tabular-nums">{% if bar.adj_close is not none %}{{ "%.4f"|format(bar.adj_close) }}{% else %}—{% endif %}</td>
+                    <td class="data-font tabular-nums">{{ "{:,}".format(bar.volume) }}</td>
+                    {% if anomalies %}
+                    <td>
+                        {% if bar.is_corporate_action %}
+                            <span class="badge badge-caution">Corp Action</span>
+                        {% endif %}
+                    </td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if total_pages and total_pages > 1 %}
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.5rem;">
+        {% if page > 1 %}
+        <button class="btn-primary" hx-get="/data/symbol/{{ symbol }}?page={{ page - 1 }}&size={{ size }}" hx-target="#symbol-detail" hx-swap="innerHTML">Prev</button>
+        {% endif %}
+        <span class="data-font tabular-nums">Page {{ page }} / {{ total_pages }}</span>
+        {% if page < total_pages %}
+        <button class="btn-primary" hx-get="/data/symbol/{{ symbol }}?page={{ page + 1 }}&size={{ size }}" hx-target="#symbol-detail" hx-swap="innerHTML">Next</button>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% elif total is defined and total == 0 %}
+<div id="symbol-detail-content">
+    <div class="card" style="text-align:center;color:var(--text-secondary);padding:2rem;">
+        No data found for <strong>{{ symbol }}</strong>.
+    </div>
+</div>
+{% elif total is defined and total > 0 and bars|length == 0 %}
+<div id="symbol-detail-content">
+    <div class="card" style="text-align:center;color:var(--text-secondary);padding:2rem;">
+        Page {{ page }} is beyond available data ({{ total }} bars, {{ total_pages }} pages).
+    </div>
+</div>
+{% endif %}

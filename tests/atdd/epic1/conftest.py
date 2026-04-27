@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 import numpy as np
 import pandas as pd
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+
+from trade_advisor.core.config import DatabaseConfig
+from trade_advisor.data.storage import DataRepository
+from trade_advisor.infra.db import DatabaseManager
 
 
 @pytest.fixture
@@ -67,3 +75,128 @@ def ohlcv_with_zero_volume() -> pd.DataFrame:
             "volume": [1e6, 0, 1e6, 0, 1e6],
         }
     )
+
+
+def _make_ohlcv(
+    symbol: str = "TEST",
+    n: int = 100,
+    start: str = "2024-01-01",
+    seed: int = 42,
+    adj_diff: bool = False,
+) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    dates = pd.date_range(start=start, periods=n, freq="B", tz="UTC")
+    rets = rng.normal(loc=0.0003, scale=0.01, size=n)
+    close = 100.0 * np.cumprod(1.0 + rets)
+    open_ = np.concatenate([[close[0]], close[:-1]])
+    high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, 0.002, n)))
+    low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
+    volume = rng.integers(1_000_000, 5_000_000, size=n)
+    adj_close = close * 0.95 if adj_diff else close.copy()
+
+    return pd.DataFrame(
+        {
+            "symbol": symbol,
+            "interval": "1d",
+            "timestamp": dates,
+            "open": open_,
+            "high": high,
+            "low": low,
+            "close": close,
+            "adj_close": adj_close,
+            "volume": volume,
+            "source": "synthetic",
+        }
+    )
+
+
+def _make_split_ohlcv(symbol: str = "SPLIT") -> pd.DataFrame:
+    n = 20
+    rng = np.random.default_rng(99)
+    dates = pd.date_range("2024-01-01", periods=n, freq="B", tz="UTC")
+    close = np.linspace(100, 110, n)
+    split_factor = np.ones(n)
+    split_factor[10] = 2.0
+    div_factor = np.ones(n)
+    div_factor[15] = 0.98
+    df = pd.DataFrame(
+        {
+            "symbol": symbol,
+            "interval": "1d",
+            "timestamp": dates,
+            "open": close,
+            "high": close * 1.01,
+            "low": close * 0.99,
+            "close": close,
+            "adj_close": close,
+            "volume": rng.integers(1_000_000, 5_000_000, n),
+            "source": "synthetic",
+            "split_factor": split_factor,
+            "div_factor": div_factor,
+        }
+    )
+    return df
+
+
+@asynccontextmanager
+async def _create_client_with_data(*dfs: pd.DataFrame):
+    from trade_advisor.main import app
+
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    async with db:
+        original_db = getattr(app.state, "db", None)
+        app.state.db = db
+        try:
+            if dfs:
+                repo = DataRepository(db)
+                for df in dfs:
+                    await repo.store(df, provider_name="synthetic")
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                yield client
+        finally:
+            app.state.db = original_db
+
+
+@pytest_asyncio.fixture
+async def async_client_with_data():
+    async with _create_client_with_data(_make_ohlcv()) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client_with_data_adj():
+    async with _create_client_with_data(_make_ohlcv(adj_diff=True)) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client_with_anomaly():
+    df = _make_ohlcv(symbol="ANOMALY", n=30)
+    df.loc[10, "volume"] = 0
+    async with _create_client_with_data(df) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client_with_split():
+    async with _create_client_with_data(_make_split_ohlcv()) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client_empty():
+    async with _create_client_with_data() as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def async_client_50_symbols():
+    dfs = []
+    for i in range(50):
+        symbol = f"SYM{i:03d}"
+        dfs.append(_make_ohlcv(symbol=symbol, n=100, seed=i))
+    async with _create_client_with_data(*dfs) as client:
+        yield client

@@ -23,6 +23,8 @@ _OHLCV_INSERT_COLUMNS = [
     "adj_close",
     "volume",
     "source",
+    "split_factor",
+    "div_factor",
 ]
 
 _UPSERT_SQL = f"""
@@ -89,6 +91,12 @@ class DataRepository:
         if df.empty:
             return
 
+        df = df.copy()
+        if "split_factor" not in df.columns:
+            df["split_factor"] = 1.0
+        if "div_factor" not in df.columns:
+            df["div_factor"] = 1.0
+
         cols = list(df.columns)
         for col in _OHLCV_INSERT_COLUMNS:
             if col not in cols:
@@ -116,6 +124,8 @@ class DataRepository:
                             existing_adj,
                             row[8],
                             row[9],
+                            row[10],
+                            row[11],
                         )
 
         batch_size = 1000
