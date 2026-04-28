@@ -14,6 +14,6 @@
       "preact": ["./node_modules/preact"]
     }
   },
-  "include": ["events.ts", "islands/**/*.ts"],
+  "include": ["bridge.ts", "events.ts", "islands/**/*.ts", "islands/**/*.tsx"],
   "exclude": ["node_modules"]
 }

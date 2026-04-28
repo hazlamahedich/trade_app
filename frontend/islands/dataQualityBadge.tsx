@@ -6,10 +6,16 @@ interface DataQualityBadgeProps {
   anomalyCount?: number;
 }
 
-const badgeColors: Record<string, string> = {
-  PASS: "bg-green-100 text-green-800",
-  WARN: "bg-yellow-100 text-yellow-800",
-  FAIL: "bg-red-100 text-red-800",
+const colorMap: Record<string, { bg: string; text: string }> = {
+  PASS: { bg: "var(--healthy)", text: "#fff" },
+  WARN: { bg: "var(--caution)", text: "#fff" },
+  FAIL: { bg: "var(--degraded)", text: "#fff" },
+};
+
+const iconMap: Record<string, string> = {
+  PASS: "✓",
+  FAIL: "✗",
+  WARN: "⚠",
 };
 
 const DataQualityBadge: FunctionComponent<DataQualityBadgeProps> = ({
@@ -18,17 +24,30 @@ const DataQualityBadge: FunctionComponent<DataQualityBadgeProps> = ({
 }) => {
   const [expanded, setExpanded] = useState(false);
 
+  const colors = colorMap[level] || { bg: "var(--border-color)", text: "var(--text-primary)" };
+  const icon = iconMap[level] || "⚠";
+
   return h(
     "span",
     {
-      class: `inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${badgeColors[level] || "bg-gray-100 text-gray-800"}`,
+      style: {
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.25rem",
+        padding: "2px 8px",
+        borderRadius: "4px",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        background: colors.bg,
+        color: colors.text,
+        cursor: "pointer",
+      },
       onClick: () => setExpanded(!expanded),
-      style: { cursor: "pointer" },
     },
-    h("span", null, level === "PASS" ? "✓" : level === "FAIL" ? "✗" : "⚠"),
+    h("span", null, icon),
     h("span", null, `Data: ${level}`),
     expanded && anomalyCount > 0
-      ? h("span", { class: "ml-1" }, `(${anomalyCount} anomalies)`)
+      ? h("span", { style: { marginLeft: "0.25rem" } }, `(${anomalyCount} anomalies)`)
       : null
   );
 };

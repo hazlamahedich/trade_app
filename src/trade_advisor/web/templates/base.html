@@ -62,8 +62,14 @@
         .btn-primary:hover { opacity: 0.9; }
         .spinner { display: inline-block; width: 1.5rem; height: 1.5rem; border: 2px solid var(--border-color); border-top-color: var(--informational); border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            .spinner { animation: none; }
+            [data-island-status="pending"] { opacity: 1; }
+        }
         .error-state { background: rgba(239,68,68,0.1); border: 1px solid var(--degraded); border-radius: var(--radius); padding: 1rem; color: var(--degraded); }
         #error-container { margin-bottom: 1rem; }
+        [data-island-status="pending"] { opacity: 0.7; }
+        [data-island-status="error"] { outline: 2px dashed var(--degraded); outline-offset: 2px; }
     </style>
 </head>
 <body>
@@ -95,5 +101,9 @@
             }
         })();
     </script>
+    <!-- State ownership: Preact owns interactive UI state, HTMX owns server-rendered content.
+         hx-disable on Preact subtrees prevents HTMX from touching Preact-managed DOM.
+         Preact→HTMX: dispatch custom "ta:action" events; HTMX listens via hx-trigger="ta:action from:body". -->
+    <script type="module" src="/static/bridge.js"></script>
 </body>
 </html>

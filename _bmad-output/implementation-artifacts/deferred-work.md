@@ -1,12 +1,29 @@
 # Deferred Work
 
-## Deferred from: code review of 1-7-data-explorer-web-page.md (2026-04-27)
+## Deferred from: code review of 1-9-composition-root-strategy-protocol.md (2026-04-27)
 
-- Redundant pagination validation in `data.py:145-148` — dead code, harmless. FastAPI `Query(ge=1)` already enforces constraints.
-- Static files mount at import time in `main.py:39` — `if _static_dir.exists()` runs once at module load. If directory is created later, mount is skipped for process lifetime.
-- SQL hardcodes `interval = '1d'` in `data.py:38,50` — symbol detail and corp action queries only check '1d' interval. Data at other intervals is invisible.
-- `symbol_detail.html` crashes on NULL OHLC/volume — template applies format filters unconditionally. Schema declares NOT NULL, but no runtime guard.
-- `YahooProvider` deferred import inside `fetch_symbol` handler — intentional: avoids import-time network dependency.
-- `get_db()` has no guard for missing `app.state.db` — lifespan context manager guarantees the attribute exists. If lifespan fails, the app doesn't start.
-- `fetch_symbol` TOCTOU race on concurrent fetches — `DataRepository.store` reads then writes across two lock acquisitions. RW lock serializes individual operations but not the read-then-write sequence.
-- Existing test fixtures (`ohlcv_with_nan`, `ohlcv_with_duplicates`, etc.) missing `symbol`, `interval`, `source` columns — pre-existing divergence from schema contract. Not introduced by Story 1.7.
+- `bootstrap()` called per invocation in `cli.py:87` and `ui/app.py:122` — not a bug (CLI runs once per process, Streamlit reruns whole script). Consider module-level caching if it becomes a performance concern.
+- `_synthetic_ohlcv(n=0)` raises `IndexError` in `tests/helpers.py:24` — no caller passes n=0. Add guard if parametric tests need it.
+- `assert_no_lookahead_bias` vacuous pass when `warmup_period >= cutoff` in `tests/helpers.py:98` — all current strategies have warmup < 200. Raise cutoff or add assertion for non-trivial signals before cutoff.
+- `_scan_imports` regex in `tests/test_import_contracts.py:17` matches commented-out imports and docstrings — use AST-based parsing if false positives appear.
+- `SignalBatch` with empty `signals=[]` skips strategy_name consistency check in `strategies/schemas.py:51` — empty batch is semantically neutral. Add validation if downstream code depends on batch.strategy_name.
+- AC-14 advisory: `SmaCross.generate_signals` returns `int8` dtype while Protocol specifies `pd.Series[float]` — Phase 1 acceptable, reconcile dtype when ML strategies (SE-2) introduce continuous signals.
+
+## Deferred from: code review #1 of 1-9-composition-root-strategy-protocol.md (2026-04-27)
+
+- W1: `SignalModel.confidence` could be `Optional[float]` constrained to `[0.0, 1.0]` — low risk; add when ML strategies need it
+- W2: `SignalBatch.strategy_name` could use `Literal` type for compile-time checking — premature with only one strategy
+- W3: `AppContainer` could expose `.config` as read-only via `MappingProxyType` — over-engineering for current needs
+- W4: `interface.py` Protocol docs could include Sphinx-style `:param:` annotations — cosmetic; documentation sprint
+- W5: Add Hypothesis property-based test for arbitrary signal series — add in test-hardening pass
+
+## Deferred from: code review of 1-10-htmx-preact-bridge-proof-of-concept.md (2026-04-28)
+
+- Hardcoded port 8199 with no conflict detection [conftest_bridge.py:26] — pre-existing pattern; consider dynamic port allocation
+- urlopen response never closed [conftest_bridge.py:14] — pre-existing; GC handles it on CPython but could exhaust FDs under load
+- Fragile parents[3] path resolution [test_event_contract.py:6] — path depends on project structure; breaks if test file is moved
+- E2E tests use hardcoded wait_for_timeout — flaky on slow CI; consider polling on DOM conditions instead
+- Leak detection tolerance +2 masks real leaks [test_bridge_lifecycle.py:68] — tolerance added for flakiness; tighten after CI stability proven
+- Watch mode skips bundle size enforcement [esbuild.config.mjs:49-66] — dev-only concern; CI catches budget violations
+- Module-level initBridge() fails in non-browser env [bridge.ts:6] — only loaded via browser script tag; blocks future Node.js testability
+- SVG elements with data-preact-mount [bridgeUtils.ts:47] — no SVG islands in current scope; add instanceof check if needed later

@@ -1,6 +1,17 @@
 {% if bars %}
 <div id="symbol-detail-content">
     <h3>{{ symbol }} — OHLCV Data</h3>
+    {% set level = "FAIL" if anomalies|selectattr("severity","eq","ERROR")|list else ("WARN" if anomalies else "PASS") %}
+    <div hx-disable style="margin-bottom:0.5rem;">
+        <span data-preact-mount="dataQualityBadge"
+              data-preact-props='{"level":"{{ level }}","anomalyCount":{{ anomalies|length if anomalies else 0 }}}'
+              data-island-status="pending"
+              role="status" aria-label="Data quality badge" tabindex="0">
+            <span class="badge badge-{% if level == "FAIL" %}degraded{% elif level == "WARN" %}caution{% else %}healthy{% endif %}">
+                {% if level == "PASS" %}✓{% elif level == "FAIL" %}✗{% else %}⚠{% endif %} Data: {{ level }}
+            </span>
+        </span>
+    </div>
     {% if anomalies %}
     <div style="margin-bottom:0.5rem;">
         {% for a in anomalies %}
