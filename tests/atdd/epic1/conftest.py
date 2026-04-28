@@ -10,6 +10,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
+from tests.support.factories.ohlcv_factory import make_ohlcv as _make_ohlcv
 from trade_advisor.core.config import DatabaseConfig
 from trade_advisor.data.storage import DataRepository
 from trade_advisor.infra.db import DatabaseManager
@@ -77,39 +78,6 @@ def ohlcv_with_zero_volume() -> pd.DataFrame:
     )
 
 
-def _make_ohlcv(
-    symbol: str = "TEST",
-    n: int = 100,
-    start: str = "2024-01-01",
-    seed: int = 42,
-    adj_diff: bool = False,
-) -> pd.DataFrame:
-    rng = np.random.default_rng(seed)
-    dates = pd.date_range(start=start, periods=n, freq="B", tz="UTC")
-    rets = rng.normal(loc=0.0003, scale=0.01, size=n)
-    close = 100.0 * np.cumprod(1.0 + rets)
-    open_ = np.concatenate([[close[0]], close[:-1]])
-    high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, 0.002, n)))
-    low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
-    volume = rng.integers(1_000_000, 5_000_000, size=n)
-    adj_close = close * 0.95 if adj_diff else close.copy()
-
-    return pd.DataFrame(
-        {
-            "symbol": symbol,
-            "interval": "1d",
-            "timestamp": dates,
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "adj_close": adj_close,
-            "volume": volume,
-            "source": "synthetic",
-        }
-    )
-
-
 def _make_split_ohlcv(symbol: str = "SPLIT") -> pd.DataFrame:
     n = 20
     rng = np.random.default_rng(99)
@@ -162,19 +130,21 @@ async def _create_client_with_data(*dfs: pd.DataFrame):
 
 @pytest_asyncio.fixture
 async def async_client_with_data():
-    async with _create_client_with_data(_make_ohlcv()) as client:
+    async with _create_client_with_data(_make_ohlcv(n=100, start="2024-01-01")) as client:
         yield client
 
 
 @pytest_asyncio.fixture
 async def async_client_with_data_adj():
-    async with _create_client_with_data(_make_ohlcv(adj_diff=True)) as client:
+    async with _create_client_with_data(
+        _make_ohlcv(n=100, start="2024-01-01", adj_diff=True)
+    ) as client:
         yield client
 
 
 @pytest_asyncio.fixture
 async def async_client_with_anomaly():
-    df = _make_ohlcv(symbol="ANOMALY", n=30)
+    df = _make_ohlcv(symbol="ANOMALY", n=30, start="2024-01-01")
     df.loc[10, "volume"] = 0
     async with _create_client_with_data(df) as client:
         yield client
@@ -197,6 +167,6 @@ async def async_client_50_symbols():
     dfs = []
     for i in range(50):
         symbol = f"SYM{i:03d}"
-        dfs.append(_make_ohlcv(symbol=symbol, n=100, seed=i))
+        dfs.append(_make_ohlcv(symbol=symbol, n=100, seed=i, start="2024-01-01"))
     async with _create_client_with_data(*dfs) as client:
         yield client

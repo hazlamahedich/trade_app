@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 import numpy as np
 import pandas as pd
 
+from tests.support.factories.ohlcv_factory import make_ohlcv as _factory_ohlcv
+
 
 def _synthetic_ohlcv(
     n: int = 500,
@@ -32,29 +34,7 @@ def _synthetic_ohlcv(
                 "source",
             ],
         )
-    rng = np.random.default_rng(seed)
-    dates = pd.date_range(start=start, periods=n, freq="B", tz="UTC")
-    rets = rng.normal(loc=trend, scale=vol, size=n)
-    close = 100.0 * np.cumprod(1.0 + rets)
-    open_ = np.concatenate([[close[0]], close[:-1]])
-    high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, 0.002, n)))
-    low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
-    volume = rng.integers(1_000_000, 5_000_000, size=n)
-
-    return pd.DataFrame(
-        {
-            "symbol": symbol,
-            "interval": "1d",
-            "timestamp": dates,
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "adj_close": close,
-            "volume": volume,
-            "source": "synthetic",
-        },
-    )
+    return _factory_ohlcv(n=n, symbol=symbol, start=start, seed=seed, trend=trend, vol=vol)
 
 
 class StubDataProvider:

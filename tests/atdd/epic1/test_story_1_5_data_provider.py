@@ -72,6 +72,8 @@ class TestStory15DataProvider:
 
     @pytest.mark.asyncio
     async def test_stale_data_detected_and_flagged(self):
+        from datetime import UTC, datetime, timedelta
+
         from trade_advisor.core.config import DatabaseConfig, DataConfig
         from trade_advisor.data.storage import DataRepository
         from trade_advisor.infra.db import DatabaseManager
@@ -83,11 +85,11 @@ class TestStory15DataProvider:
             df = _synthetic_ohlcv(n=5)
             await repo.store(df, provider_name="synthetic")
 
-            import asyncio
-
-            await asyncio.sleep(1.1)
-
-            freshness = await repo.check_freshness("TEST", "1d")
+            future_now = datetime.now(UTC) + timedelta(seconds=10)
+            with patch("trade_advisor.data.storage.datetime") as mock_dt:
+                mock_dt.now.return_value = future_now
+                mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+                freshness = await repo.check_freshness("TEST", "1d")
             assert freshness.is_stale is True
 
     @pytest.mark.asyncio

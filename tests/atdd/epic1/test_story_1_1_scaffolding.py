@@ -79,8 +79,9 @@ class TestStory11ProjectScaffolding:
         )
         assert result.returncode == 0, f"ruff violations:\n{result.stdout}"
 
-    @pytest.mark.skip(
-        reason="mypy --strict has pre-existing errors; tracked for post-Epic-1 hardening"
+    @pytest.mark.xfail(
+        reason="mypy --strict has pre-existing errors; tracked for post-Epic-1 hardening",
+        strict=False,
     )
     def test_mypy_strict_passes(self):
         import subprocess

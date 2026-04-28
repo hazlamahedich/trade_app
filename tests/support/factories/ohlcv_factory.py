@@ -19,6 +19,7 @@ def make_ohlcv(
     trend: float = 0.0003,
     vol: float = 0.01,
     interval: str = "1d",
+    adj_diff: bool = False,
 ) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
     dates = pd.date_range(start=start, periods=n, freq="B", tz="UTC")
@@ -28,6 +29,7 @@ def make_ohlcv(
     high = np.maximum(open_, close) * (1 + np.abs(rng.normal(0, 0.002, n)))
     low = np.minimum(open_, close) * (1 - np.abs(rng.normal(0, 0.002, n)))
     volume = rng.integers(1_000_000, 5_000_000, size=n)
+    adj_close = close * 0.95 if adj_diff else close.copy()
 
     return pd.DataFrame(
         {
@@ -38,7 +40,7 @@ def make_ohlcv(
             "high": high,
             "low": low,
             "close": close,
-            "adj_close": close,
+            "adj_close": adj_close,
             "volume": volume,
             "source": "synthetic",
         }
