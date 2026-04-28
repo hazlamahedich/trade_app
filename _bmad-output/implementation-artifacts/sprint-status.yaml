@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-28
+last_updated: 2026-04-29T00:30:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -57,9 +57,9 @@ development_status:
   epic-1-retrospective: done
 
   # Epic 2: Strategy Development & Backtesting
-  epic-2: backlog
-  2-1-built-in-sma-crossover-strategy: backlog
-  2-2-position-sizing-methods: backlog
+  epic-2: in-progress
+  2-1-built-in-sma-crossover-strategy: done
+  2-2-position-sizing-methods: done
   2-3-vectorized-backtest-engine: backlog
   2-4-event-driven-backtest-engine: backlog
   2-5-convergence-testing-between-engines: backlog

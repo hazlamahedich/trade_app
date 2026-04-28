@@ -148,7 +148,7 @@ class TestSignalBatch:
 class TestLatencyProperties:
     def test_information_latency_default(self):
         s = SmaCross(fast=10, slow=30)
-        assert s.information_latency == 0
+        assert s.information_latency == 1
 
     def test_warmup_period_returns_slow(self):
         s = SmaCross(fast=10, slow=30)

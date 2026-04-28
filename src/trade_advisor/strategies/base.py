@@ -35,7 +35,11 @@ class Strategy(ABC):
 
     @property
     def information_latency(self) -> int:
-        """Minimum data delay in bars.  Override in subclasses as needed."""
+        """Minimum data delay in bars.
+
+        Override in subclasses — default of 0 means "no additional latency";
+        strategies that shift signals should declare the shift amount.
+        """
         return 0
 
     @property

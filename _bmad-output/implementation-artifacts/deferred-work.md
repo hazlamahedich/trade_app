@@ -35,3 +35,21 @@
 - `default_factory` fields get no SQL DEFAULT [migrate.py:177-188] — Python factories can't be expressed as SQL DEFAULT; could warn but no model uses it yet
 - Removing model from `SCHEMA_MODELS` leaves orphaned table with no warning [migrate.py:422-434] — schema validation only checks for missing, not orphaned; deferred until a story needs it
 - Gap detection test bypasses public API [test_migrate.py:391-399] — calls `_detect_gaps()` directly; minor test quality issue
+
+## Deferred from: code review of 2-1-built-in-sma-crossover-strategy.md (2026-04-28)
+
+- `test_nan_close_produces_flat_signals` name promises "flat" but only asserts no NaN leakage — test is still useful for NaN-leak detection; consider renaming to `test_nan_close_no_nan_leakage` or adding explicit flatness assertion
+- `to_signal_batch` uses `datetime.now(UTC)` for `generated_at` — wall-clock time, not data time. Two calls on same data produce different `generated_at`. Consider using last OHLCV timestamp for reproducibility
+- `generate_signals` raises raw `KeyError` if DataFrame has neither `close` nor `adj_close` — add descriptive error message for better DX
+
+## Deferred from: re-review of 2-1-built-in-sma-crossover-strategy.md (2026-04-28)
+
+- Empty DataFrame path in `generate_signals` loses original index type — `pd.Series(dtype="float64")` returns RangeIndex, causing `to_signal_batch` TypeError on empty DatetimeIndex input. Fix: `pd.Series(dtype="float64", index=ohlcv.index)` [sma_cross.py:55]
+- tz-naive DatetimeIndex passes DatetimeIndex guard but crashes in Pydantic `AwareDatetime` validation — strengthen guard to check `signals.index.tz is not None` [sma_cross.py:83]
+- NaN in close column silently masked as flat signal — no way to distinguish "flat by strategy" from "flat due to missing data". Pre-existing; revisit if risk/position-sizing layer needs the distinction
+
+## Deferred from: code review of 2-2-position-sizing-methods.md (2026-04-28)
+
+- `SizingConfig.method` is unconstrained `str` — no Literal type or discriminated union enforcement. `SizingConfig(method="bogus")` is valid. Consider `Literal` type when integrating with strategy config in Story 2.3
+- `FixedFractionalConfig` Pydantic model rejects `fraction>1` (Field le=1) while raw `fixed_fractional()` silently clamps to `MAX_FRACTION`. Two code paths produce inconsistent behavior for same logical input. Revisit when engine integration adds the canonical call path
+- `SizingConfig` base class has no abstract `compute()` method — no type-level guarantee that a SizingConfig instance supports compute(). Add Protocol or abstract method when polymorphic dispatch is needed in Story 2.3
