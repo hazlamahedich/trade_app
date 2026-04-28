@@ -50,7 +50,7 @@ from typing import Any
 import duckdb
 
 from trade_advisor.core.config import DatabaseConfig
-from trade_advisor.core.errors import DataError, IntegrityError, QTAError
+from trade_advisor.core.errors import ConfigurationError, DataError, IntegrityError, QTAError
 
 log = logging.getLogger("trade_advisor.infra.db")
 
@@ -58,7 +58,8 @@ _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS schema_version (
     version     INTEGER PRIMARY KEY,
     applied_at  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    description TEXT
+    description TEXT,
+    checksum    TEXT DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS ohlcv_cache (
@@ -192,6 +193,7 @@ class DatabaseManager:
             self._conn = await asyncio.to_thread(self._open_connection)
             await asyncio.to_thread(self._init_pragmas)
             await asyncio.to_thread(self._init_schema)
+            await asyncio.to_thread(self._run_migrations)
             self._state = _State.OPEN
         except duckdb.Error as exc:
             self._cleanup()
@@ -281,6 +283,21 @@ class DatabaseManager:
         self._conn.execute(_SCHEMA_SQL)
         with contextlib.suppress(duckdb.IntegrityError):
             self._conn.execute(_SEED_VERSION_SQL)
+
+    def _run_migrations(self) -> None:
+        if self._conn is None:
+            raise ConfigurationError("Cannot run migrations: no database connection")
+        from trade_advisor.infra.migrate import run_migrations_sync
+
+        result = run_migrations_sync(self._conn)
+        if result.applied:
+            log.info(
+                "Applied %d migration(s), now at v%d",
+                len(result.applied),
+                result.current_version,
+            )
+        for w in result.warnings:
+            log.warning("Migration warning: %s", w)
 
     # ── internal: execution helpers ──────────────────────────────────
 

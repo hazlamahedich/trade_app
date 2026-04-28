@@ -3,7 +3,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+def _find_repo_root() -> Path:
+    p = Path(__file__).resolve()
+    for parent in p.parents:
+        if (parent / "pyproject.toml").exists():
+            return parent
+    raise FileNotFoundError("Cannot locate repo root (no pyproject.toml found)")
+
+
+_REPO_ROOT = _find_repo_root()
 _TS_EVENTS = _REPO_ROOT / "frontend" / "events.ts"
 _PY_EVENTS = _REPO_ROOT / "src" / "trade_advisor" / "web" / "events.py"
 

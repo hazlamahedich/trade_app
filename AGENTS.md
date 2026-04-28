@@ -4,7 +4,7 @@
 
 ```bash
 # Setup (from repo root)
-uv venv --python 3.11 && source .venv/bin/activate && uv pip install -e ".[dev]"
+uv venv --python 3.12 && source .venv/bin/activate && uv pip install -e ".[dev]"
 pre-commit install
 
 # Lint → format → typecheck (run in this order)
@@ -34,19 +34,22 @@ ta dashboard                              # Streamlit UI
 - **Package**: `src/trade_advisor/` (installed as `trade_advisor`, CLI entry point `ta`)
 - **Config**: `pydantic` models in `config.py`; YAML strategy configs in `configs/`
 - **Data flow**: yfinance → `data/cache.py` (Parquet at `data_cache/ohlcv/<SYMBOL>/<INTERVAL>/`) → strategies → backtest engine → metrics → MLflow tracking
-- **Strategy pattern**: Subclass `strategies/base.py::Strategy`, implement `generate_signals()` returning `{-1, 0, +1}` Series. Must shift by 1 bar to prevent lookahead bias.
+- **Strategy pattern**: Subclass `strategies/base.py::Strategy`, implement `generate_signals()` returning `float` Series (range `[-1.0, +1.0]`). Must shift by 1 bar to prevent lookahead bias.
 - **Backtest engine**: `backtest/engine.py` — vectorized pandas/numpy (not vectorbt yet). Signal executed at same bar's close.
 - **Experiment tracking**: `tracking/mlflow_utils.py`, local file store at `mlruns/`
+- **Web layer**: FastAPI with HTMX + Preact islands, Jinja2 templates in `web/templates/`
+- **Decimal convention**: All financial values use `Decimal` via `DecimalStr` type (see `core/types.py`). Cross float boundary only via `from_float()`/`to_float()`.
 
 ## Key Conventions
 
-- Python 3.11+, Apple Silicon (M1 Max), free/open-source deps only
+- Python 3.12+, Apple Silicon (M1 Max), free/open-source deps only
 - `ruff` for lint+format (line-length 100, E501 ignored, strict rule set)
 - `mypy` with `ignore_missing_imports=true`, `strict=false`
 - `pytest` markers: `@pytest.mark.integration` for network tests; default run is offline
 - Tests use `conftest._synthetic_ohlcv()` for deterministic fixture data (seed=42)
 - `__future__.annotations` in every module
-- Signals convention: `+1` long, `0` flat, `-1` short
+- Signals convention: `+1.0` long, `0.0` flat, `-1.0` short (float dtype, not int)
+- Use `pyproject.toml`-based root discovery in tests, not `Path(__file__).parents[N]`
 
 ## Planning Artifacts
 
@@ -57,7 +60,7 @@ BMAD planning docs live in `_bmad-output/planning-artifacts/`:
 - `ux-design-specification.md` — UX flows and components
 - `implementation-readiness-report-2026-04-24.md` — readiness assessment (90/100, READY)
 
-Read these before starting implementation work. The project is post-readiness, pre-Sprint-0.
+Read these before starting implementation work. The project has completed Epic 1 (all 11 stories done, 600 tests passing). Epic 2 is next.
 
 ## Toolchain Integrations
 
@@ -74,3 +77,6 @@ Read these before starting implementation work. The project is post-readiness, p
 - `pandas-ta` version `0.3.14b` has the `b` suffix — not a typo
 - The `backtest/engine.py` docstring mentions vectorbt but the engine is pure pandas/numpy
 - Phase 2+ directories (`features/`, `ml/`) exist but are empty stubs
+- `mypy --strict` has 12 pre-existing errors (DataConfig missing args, engine arg types); standard `mypy src/` passes with `strict=false`
+- `setup_logging` is an alias for `configure_logging` in `core/logging.py` — either works
+- `get_api_key(provider)` is in `core/secrets.py` and re-exported from `config.py`

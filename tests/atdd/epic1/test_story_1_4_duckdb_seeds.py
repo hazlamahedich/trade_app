@@ -5,13 +5,10 @@ All tests are SKIPPED (TDD red phase). Remove when implementing Story 1.4.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestStory14DuckDB:
     """Story 1.4: DuckDB lifecycle, WAL mode, write serialization, seeds."""
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_duckdb_wal_mode(self, tmp_path):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager
@@ -27,7 +24,6 @@ class TestStory14DuckDB:
             )
             assert os.path.exists(wal_path)
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_duckdb_core_tables_created(self):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager
@@ -40,7 +36,6 @@ class TestStory14DuckDB:
             assert "experiments" in tables
             assert "data_sources" in tables
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_duckdb_write_serialization_with_lock(self):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager, _ReaderWriterLock
@@ -49,7 +44,6 @@ class TestStory14DuckDB:
         async with DatabaseManager(config) as db:
             assert isinstance(db._rw_lock, _ReaderWriterLock)
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_duckdb_shutdown_cleanup(self):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager
@@ -60,7 +54,6 @@ class TestStory14DuckDB:
             await mgr.read("SELECT 1")
         await mgr.close()
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     def test_seed_manager_hierarchy(self):
         from trade_advisor.infra.seed import SeedManager
 
@@ -69,7 +62,6 @@ class TestStory14DuckDB:
         child2 = sm.derive_experiment_seed("exp_002")
         assert child1 != child2
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     def test_seed_determinism_bitwise_identical(self):
         """Same global seed => same child seeds => bitwise identical."""
         from trade_advisor.infra.seed import SeedManager
@@ -79,12 +71,10 @@ class TestStory14DuckDB:
 
         assert sm1.derive_experiment_seed("exp_001") == sm2.derive_experiment_seed("exp_001")
         assert sm1.derive_cv_fold_seed("exp_001", 0) == sm2.derive_cv_fold_seed("exp_001", 0)
-        assert (
-            sm1.derive_augmentation_seed("exp_001", 0, 0)
-            == sm2.derive_augmentation_seed("exp_001", 0, 0)
+        assert sm1.derive_augmentation_seed("exp_001", 0, 0) == sm2.derive_augmentation_seed(
+            "exp_001", 0, 0
         )
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     def test_seed_hierarchy_levels(self):
         from trade_advisor.infra.seed import SeedManager
 
@@ -95,13 +85,11 @@ class TestStory14DuckDB:
         aug_s = sm.derive_augmentation_seed("exp_001", 0, 0)
         assert len({global_s, exp_s, cv_s, aug_s}) == 4
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     def test_task_runner_protocol(self):
         from trade_advisor.infra.tasks import TaskRunner
 
         assert TaskRunner is not None
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_experiments_table_schema(self):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager
@@ -118,7 +106,6 @@ class TestStory14DuckDB:
             assert "strategy" in cols
             assert "metrics_json" in cols
 
-    @pytest.mark.skip(reason="ATDD red phase — Story 1.4 not implemented")
     async def test_ohlcv_cache_table_schema(self):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager

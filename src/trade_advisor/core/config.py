@@ -16,7 +16,8 @@ from pydantic import BaseModel, Field, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from trade_advisor.core.logging import configure_logging as _configure_logging
-from trade_advisor.core.secrets import SecretsConfig, load_secrets
+from trade_advisor.core.secrets import SecretsConfig, get_api_key, load_secrets  # noqa: F401
+from trade_advisor.core.types import DecimalStr
 
 log = logging.getLogger("trade_advisor.config")
 
@@ -51,7 +52,7 @@ class CostModel(BaseModel):
 
 
 class BacktestConfig(BaseModel):
-    initial_cash: Decimal = Field(
+    initial_cash: DecimalStr = Field(
         Decimal("100000"), gt=0, description="Starting capital in dollars"
     )
     cost: CostModel = CostModel()  # type: ignore[call-arg]
@@ -59,17 +60,17 @@ class BacktestConfig(BaseModel):
 
 
 class RiskConfig(BaseModel):
-    max_position_size: Decimal = Field(..., gt=0, description="Max position size in dollars")
-    max_portfolio_drawdown_pct: Decimal = Field(Decimal("20.0"), ge=0, le=100)
-    max_sector_exposure: Decimal = Field(Decimal("30.0"), ge=0, le=100)
-    daily_loss_limit: Decimal = Field(Decimal("5000"), ge=0)
+    max_position_size: DecimalStr = Field(..., gt=0, description="Max position size in dollars")
+    max_portfolio_drawdown_pct: DecimalStr = Field(Decimal("20.0"), ge=0, le=100)
+    max_sector_exposure: DecimalStr = Field(Decimal("30.0"), ge=0, le=100)
+    daily_loss_limit: DecimalStr = Field(Decimal("5000"), ge=0)
 
 
 class ExecutionConfig(BaseModel):
     slippage_model: Literal["fixed", "percentage", "volume-weighted"] = "percentage"
-    slippage_bps: Decimal = Field(Decimal("5.0"), ge=0)
-    commission_per_share: Decimal = Field(Decimal("0.005"), ge=0)
-    commission_min: Decimal = Field(Decimal("1.0"), ge=0)
+    slippage_bps: DecimalStr = Field(Decimal("5.0"), ge=0)
+    commission_per_share: DecimalStr = Field(Decimal("0.005"), ge=0)
+    commission_min: DecimalStr = Field(Decimal("1.0"), ge=0)
 
 
 class DeterminismConfig(BaseModel):

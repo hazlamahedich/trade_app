@@ -21,6 +21,8 @@ class SuccessResponse(BaseModel):
 class ErrorDetail(BaseModel):
     code: str
     message: str
+    correlation_id: str | None = None
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class ErrorResponse(BaseModel):

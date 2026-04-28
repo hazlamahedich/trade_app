@@ -233,3 +233,26 @@ def load_from_cache(symbol: str, interval: str) -> pd.DataFrame | None:
 
 def check_freshness(symbol: str, interval: str, *, max_age_hours: int = 24) -> FreshnessStatus:
     raise NotImplementedError("Use DataRepository.check_freshness() with an async context")
+
+
+def get_data_freshness(symbol: str, interval: str):
+    from trade_advisor.core.config import DatabaseConfig
+    from trade_advisor.infra.db import DatabaseManager
+
+    config = DatabaseConfig()
+
+    async def _fetch():
+        async with DatabaseManager(config) as db:
+            repo = DataRepository(db)
+            return await repo.check_freshness(symbol, interval)
+
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            return pool.submit(asyncio.run, _fetch()).result()
+    except RuntimeError:
+        return asyncio.run(_fetch())

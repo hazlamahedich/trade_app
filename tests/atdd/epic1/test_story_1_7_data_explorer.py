@@ -17,9 +17,7 @@ class TestDataExplorerRouteAndTemplate:
         assert "text/html" in response.headers["content-type"]
 
     async def test_get_data_htmx_returns_partial(self, async_client_with_data):
-        response = await async_client_with_data.get(
-            "/data", headers={"HX-Request": "true"}
-        )
+        response = await async_client_with_data.get("/data", headers={"HX-Request": "true"})
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
 

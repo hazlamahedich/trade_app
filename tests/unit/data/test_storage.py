@@ -7,9 +7,9 @@ from tests.conftest import _synthetic_ohlcv
 
 @pytest.mark.asyncio
 async def test_store_and_load_roundtrip():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -23,9 +23,9 @@ async def test_store_and_load_roundtrip():
 
 @pytest.mark.asyncio
 async def test_store_upserts_existing_data():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -43,9 +43,9 @@ async def test_store_upserts_existing_data():
 
 @pytest.mark.asyncio
 async def test_load_returns_none_for_missing_symbol():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -56,10 +56,11 @@ async def test_load_returns_none_for_missing_symbol():
 
 @pytest.mark.asyncio
 async def test_load_filters_by_date_range():
+    from datetime import UTC, datetime
+
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
-    from datetime import UTC, datetime
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -77,9 +78,9 @@ async def test_load_filters_by_date_range():
 
 @pytest.mark.asyncio
 async def test_check_freshness_stale():
+    from trade_advisor.core.config import DatabaseConfig, DataConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig, DataConfig
 
     config = DatabaseConfig(path=":memory:")
     data_config = DataConfig(staleness_threshold_sec=1)
@@ -89,6 +90,7 @@ async def test_check_freshness_stale():
         await repo.store(df, provider_name="synthetic")
 
         import asyncio
+
         await asyncio.sleep(1.1)
 
         freshness = await repo.check_freshness("TEST", "1d")
@@ -97,9 +99,9 @@ async def test_check_freshness_stale():
 
 @pytest.mark.asyncio
 async def test_check_freshness_fresh():
+    from trade_advisor.core.config import DatabaseConfig, DataConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig, DataConfig
 
     config = DatabaseConfig(path=":memory:")
     data_config = DataConfig(staleness_threshold_sec=3600)
@@ -114,9 +116,9 @@ async def test_check_freshness_fresh():
 
 @pytest.mark.asyncio
 async def test_check_freshness_never_fetched():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -129,10 +131,11 @@ async def test_check_freshness_never_fetched():
 
 @pytest.mark.asyncio
 async def test_identical_fetch_produces_identical_cache():
+    import pandas as pd
+
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
-    import pandas as pd
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -149,9 +152,9 @@ async def test_identical_fetch_produces_identical_cache():
 
 @pytest.mark.asyncio
 async def test_data_sources_registry_updated_on_store():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -159,18 +162,21 @@ async def test_data_sources_registry_updated_on_store():
         df = _synthetic_ohlcv(n=5)
         await repo.store(df, provider_name="synthetic")
 
-        rows = await db.read("SELECT name, provider_type FROM data_sources WHERE name = ?", ("synthetic",))
+        rows = await db.read(
+            "SELECT name, provider_type FROM data_sources WHERE name = ?", ("synthetic",)
+        )
         assert len(rows) == 1
         assert rows[0][0] == "synthetic"
 
 
 @pytest.mark.asyncio
 async def test_store_atomicity_rollback_on_error():
-    from trade_advisor.data.storage import DataRepository
-    from trade_advisor.infra.db import DatabaseManager
+    import pandas as pd
+
     from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.core.errors import DataError
-    import pandas as pd
+    from trade_advisor.data.storage import DataRepository
+    from trade_advisor.infra.db import DatabaseManager
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:
@@ -203,9 +209,9 @@ async def test_store_atomicity_rollback_on_error():
 
 @pytest.mark.asyncio
 async def test_cache_partition_case_sensitivity():
+    from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
-    from trade_advisor.core.config import DatabaseConfig
 
     config = DatabaseConfig(path=":memory:")
     async with DatabaseManager(config) as db:

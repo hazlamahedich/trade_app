@@ -20,6 +20,7 @@ import numpy as np
 import pandas as pd
 
 from trade_advisor.config import BacktestConfig
+from trade_advisor.strategies.interface import Strategy  # noqa: F401 — AC-4: Protocol import
 
 
 @dataclass

@@ -27,3 +27,11 @@
 - Watch mode skips bundle size enforcement [esbuild.config.mjs:49-66] — dev-only concern; CI catches budget violations
 - Module-level initBridge() fails in non-browser env [bridge.ts:6] — only loaded via browser script tag; blocks future Node.js testability
 - SVG elements with data-preact-mount [bridgeUtils.ts:47] — no SVG islands in current scope; add instanceof check if needed later
+
+## Deferred from: code review of 1-11-schema-migration-framework.md (2026-04-28)
+
+- Checksums stored for additive migrations despite spec saying "destructive only" [migrate.py:351] — additive checksums are inert (never verified); harmless deferral
+- No enforcement of rollback instructions in manual SQL files [migrate.py:330-345] — README documents the requirement but code doesn't validate; pre-existing design choice
+- `default_factory` fields get no SQL DEFAULT [migrate.py:177-188] — Python factories can't be expressed as SQL DEFAULT; could warn but no model uses it yet
+- Removing model from `SCHEMA_MODELS` leaves orphaned table with no warning [migrate.py:422-434] — schema validation only checks for missing, not orphaned; deferred until a story needs it
+- Gap detection test bypasses public API [test_migrate.py:391-399] — calls `_detect_gaps()` directly; minor test quality issue

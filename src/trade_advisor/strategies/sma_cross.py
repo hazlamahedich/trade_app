@@ -24,17 +24,20 @@ class SmaCross(Strategy):
         self.slow = slow
         self.allow_short = allow_short
 
+    @property
+    def warmup_period(self) -> int:
+        return self.slow
+
     def generate_signals(self, ohlcv: pd.DataFrame) -> pd.Series:
         close = ohlcv["adj_close"] if "adj_close" in ohlcv.columns else ohlcv["close"]
         fast_ma = close.rolling(self.fast, min_periods=self.fast).mean()
         slow_ma = close.rolling(self.slow, min_periods=self.slow).mean()
 
-        raw = pd.Series(0, index=close.index, dtype="int8")
-        raw[fast_ma > slow_ma] = 1
+        raw = pd.Series(0.0, index=close.index, dtype="float64")
+        raw[fast_ma > slow_ma] = 1.0
         if self.allow_short:
-            raw[fast_ma < slow_ma] = -1
+            raw[fast_ma < slow_ma] = -1.0
 
-        # Shift by 1 to avoid lookahead: act on the NEXT bar.
-        shifted = raw.shift(1).fillna(0).astype("int8")
+        shifted = raw.shift(1).fillna(0.0).astype("float64")
         shifted.name = "signal"
         return shifted

@@ -43,7 +43,7 @@ class Anomaly:
 class ValidationResult:
     level: ValidationLevel
     anomalies: list[Anomaly]
-    quality_mask: pd.Series | None = None
+    error_mask: pd.Series | None = None
 
     @property
     def error_count(self) -> int:
@@ -75,7 +75,7 @@ def detect_anomalies(
     nan_run_threshold: int = 3,
 ) -> ValidationResult:
     if df.empty:
-        return ValidationResult(level=ValidationLevel.PASS, anomalies=[], quality_mask=None)
+        return ValidationResult(level=ValidationLevel.PASS, anomalies=[], error_mask=None)
 
     missing = _REQUIRED_COLS - set(df.columns)
     if missing:
@@ -126,9 +126,9 @@ def detect_anomalies(
             else:
                 error_mask_arr[pos] = True
 
-    quality_mask: pd.Series | None = None
+    error_mask: pd.Series | None = None
     if len(df) > 0:
-        quality_mask = pd.Series(error_mask_arr, index=df.index)
+        error_mask = pd.Series(error_mask_arr, index=df.index)
 
     has_errors = any(a.severity == AnomalySeverity.ERROR for a in anomalies)
     has_warnings = any(a.severity == AnomalySeverity.WARNING for a in anomalies)
@@ -140,7 +140,7 @@ def detect_anomalies(
     else:
         level = ValidationLevel.PASS
 
-    return ValidationResult(level=level, anomalies=anomalies, quality_mask=quality_mask)
+    return ValidationResult(level=level, anomalies=anomalies, error_mask=error_mask)
 
 
 def _detect_nan_runs(df: pd.DataFrame, symbol: str, nan_run_threshold: int) -> list[Anomaly]:
@@ -528,27 +528,3 @@ def _detect_timestamp_gaps(
             )
         )
     return anomalies
-
-
-def get_data_freshness(symbol: str, interval: str):
-    from trade_advisor.core.config import DatabaseConfig
-    from trade_advisor.data.storage import DataRepository
-    from trade_advisor.infra.db import DatabaseManager
-
-    config = DatabaseConfig()
-
-    async def _fetch():
-        async with DatabaseManager(config) as db:
-            repo = DataRepository(db)
-            return await repo.check_freshness(symbol, interval)
-
-    import asyncio
-
-    try:
-        asyncio.get_running_loop()
-        import concurrent.futures
-
-        with concurrent.futures.ThreadPoolExecutor() as pool:
-            return pool.submit(asyncio.run, _fetch()).result()
-    except RuntimeError:
-        return asyncio.run(_fetch())

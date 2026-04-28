@@ -5,7 +5,6 @@ Tests are now unskipped as Story 1.5 is implemented.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pandas as pd
@@ -37,16 +36,18 @@ class TestStory15DataProvider:
         provider = YahooProvider()
         df = _synthetic_ohlcv(n=5)
         with patch("trade_advisor.data.providers.yahoo.fetch_yfinance", return_value=df):
-            result = await provider.fetch("SPY", start="2024-01-01", end="2024-01-07", interval="1d")
+            result = await provider.fetch(
+                "SPY", start="2024-01-01", end="2024-01-07", interval="1d"
+            )
             assert not result.empty
             assert "close" in result.columns
             assert "timestamp" in result.columns
 
     @pytest.mark.asyncio
     async def test_cached_data_loads_without_network(self):
+        from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.data.storage import DataRepository
         from trade_advisor.infra.db import DatabaseManager
-        from trade_advisor.core.config import DatabaseConfig
 
         config = DatabaseConfig(path=":memory:")
         async with DatabaseManager(config) as db:
@@ -62,15 +63,18 @@ class TestStory15DataProvider:
         from trade_advisor.data.providers.yahoo import YahooProvider
 
         provider = YahooProvider()
-        with patch("trade_advisor.data.providers.yahoo.fetch_yfinance", side_effect=RuntimeError("Network unreachable")):
+        with patch(
+            "trade_advisor.data.providers.yahoo.fetch_yfinance",
+            side_effect=RuntimeError("Network unreachable"),
+        ):
             status = await provider.check_connectivity()
             assert status.connected is False
 
     @pytest.mark.asyncio
     async def test_stale_data_detected_and_flagged(self):
+        from trade_advisor.core.config import DatabaseConfig, DataConfig
         from trade_advisor.data.storage import DataRepository
         from trade_advisor.infra.db import DatabaseManager
-        from trade_advisor.core.config import DatabaseConfig, DataConfig
 
         config = DatabaseConfig(path=":memory:")
         data_config = DataConfig(staleness_threshold_sec=1)
@@ -80,6 +84,7 @@ class TestStory15DataProvider:
             await repo.store(df, provider_name="synthetic")
 
             import asyncio
+
             await asyncio.sleep(1.1)
 
             freshness = await repo.check_freshness("TEST", "1d")
@@ -118,6 +123,7 @@ class TestStory15DataProvider:
 
             async def check_connectivity(self):
                 from trade_advisor.data.providers.base import ConnectivityStatus
+
                 return ConnectivityStatus(connected=True, provider_name="mock")
 
         register_provider("mock_atdd", MockProvider)

@@ -38,7 +38,9 @@ class TestErrorResponse:
     def test_serialization(self):
         er = ErrorResponse(error=ErrorDetail(code="ERR", message="fail"))
         d = er.model_dump(mode="json")
-        assert d == {"error": {"code": "ERR", "message": "fail"}}
+        assert d == {
+            "error": {"code": "ERR", "message": "fail", "correlation_id": None, "details": {}}
+        }
 
     def test_json_string(self):
         er = ErrorResponse(error=ErrorDetail(code="ERR", message="fail"))

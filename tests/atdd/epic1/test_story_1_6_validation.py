@@ -107,7 +107,7 @@ class TestStory16DataValidation:
     def test_bar_validity_high_ge_max_open_close(self):
         from trade_advisor.data.schemas import Bar
 
-        with pytest.raises(ValidationError, match="high.*must be >= max"):
+        with pytest.raises(ValidationError, match=r"high.*must be >= max"):
             Bar(
                 symbol="TEST",
                 timestamp=pd.Timestamp("2024-01-01", tz="UTC"),
@@ -122,7 +122,7 @@ class TestStory16DataValidation:
     def test_bar_validity_low_le_min_open_close(self):
         from trade_advisor.data.schemas import Bar
 
-        with pytest.raises(ValidationError, match="low.*must be <= min"):
+        with pytest.raises(ValidationError, match=r"low.*must be <= min"):
             Bar(
                 symbol="TEST",
                 timestamp=pd.Timestamp("2024-01-01", tz="UTC"),
@@ -156,6 +156,7 @@ class TestStory16DataValidation:
         import asyncio
 
         import pandas as pd
+
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.data.storage import DataRepository
         from trade_advisor.infra.db import DatabaseManager
@@ -164,14 +165,20 @@ class TestStory16DataValidation:
             config = DatabaseConfig(path=":memory:", wal_mode=False)
             async with DatabaseManager(config) as db:
                 repo = DataRepository(db)
-                df = pd.DataFrame({
-                    "timestamp": pd.date_range("2024-01-01", periods=5, tz="UTC"),
-                    "symbol": "SPY", "interval": "1d",
-                    "open": [100.0] * 5, "high": [101.0] * 5,
-                    "low": [99.0] * 5, "close": [100.5] * 5,
-                    "adj_close": [100.5] * 5,
-                    "volume": [1e6] * 5, "source": ["test"] * 5,
-                })
+                df = pd.DataFrame(
+                    {
+                        "timestamp": pd.date_range("2024-01-01", periods=5, tz="UTC"),
+                        "symbol": "SPY",
+                        "interval": "1d",
+                        "open": [100.0] * 5,
+                        "high": [101.0] * 5,
+                        "low": [99.0] * 5,
+                        "close": [100.5] * 5,
+                        "adj_close": [100.5] * 5,
+                        "volume": [1e6] * 5,
+                        "source": ["test"] * 5,
+                    }
+                )
                 await repo.store(df, provider_name="test")
                 freshness = await repo.check_freshness("SPY", "1d")
                 assert hasattr(freshness, "last_updated")

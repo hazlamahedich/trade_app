@@ -41,12 +41,12 @@
                 {% for bar in bars %}
                 <tr>
                     <td class="data-font tabular-nums">{{ bar.timestamp }}</td>
-                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.open) }}</td>
-                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.high) }}</td>
-                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.low) }}</td>
-                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.close) }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.open) if bar.open is not none else "—" }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.high) if bar.high is not none else "—" }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.low) if bar.low is not none else "—" }}</td>
+                    <td class="data-font tabular-nums">{{ "%.4f"|format(bar.close) if bar.close is not none else "—" }}</td>
                     <td class="data-font tabular-nums">{% if bar.adj_close is not none %}{{ "%.4f"|format(bar.adj_close) }}{% else %}—{% endif %}</td>
-                    <td class="data-font tabular-nums">{{ "{:,}".format(bar.volume) }}</td>
+                    <td class="data-font tabular-nums">{{ "{:,}".format(bar.volume) if bar.volume is not none else "—" }}</td>
                     {% if anomalies %}
                     <td>
                         {% if bar.is_corporate_action %}

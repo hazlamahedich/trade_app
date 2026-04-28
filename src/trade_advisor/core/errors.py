@@ -33,7 +33,14 @@ class QTAError(Exception):
 
     def to_error_response(self) -> ErrorResponse:
         """Convert to a structured ``ErrorResponse`` envelope."""
-        return ErrorResponse(error=ErrorDetail(code=self.error_code, message=self.message))
+        return ErrorResponse(
+            error=ErrorDetail(
+                code=self.error_code,
+                message=self.message,
+                correlation_id=self.correlation_id,
+                details=self.details,
+            ),
+        )
 
 
 class DataError(QTAError):

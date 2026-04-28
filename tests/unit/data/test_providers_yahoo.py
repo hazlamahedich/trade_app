@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
-import pandas as pd
 import pytest
 
 from tests.conftest import _synthetic_ohlcv
@@ -79,7 +77,10 @@ async def test_yahoo_provider_connectivity_success():
 async def test_yahoo_provider_connectivity_failure():
     from trade_advisor.data.providers.yahoo import YahooProvider
 
-    with patch("trade_advisor.data.providers.yahoo.fetch_yfinance", side_effect=RuntimeError("Network error")):
+    with patch(
+        "trade_advisor.data.providers.yahoo.fetch_yfinance",
+        side_effect=RuntimeError("Network error"),
+    ):
         provider = YahooProvider()
         status = await provider.check_connectivity()
         assert status.connected is False
@@ -88,8 +89,8 @@ async def test_yahoo_provider_connectivity_failure():
 
 @pytest.mark.asyncio
 async def test_yahoo_provider_retry_on_transient_error():
-    from trade_advisor.data.providers.yahoo import YahooProvider
     from trade_advisor.core.config import DataConfig
+    from trade_advisor.data.providers.yahoo import YahooProvider
 
     config = DataConfig(retry_attempts=3, retry_delay_sec=0.01)
     df = _synthetic_ohlcv(n=1)
@@ -111,12 +112,14 @@ async def test_yahoo_provider_retry_on_transient_error():
 
 @pytest.mark.asyncio
 async def test_yahoo_provider_fetch_raises_after_all_retries():
-    from trade_advisor.data.providers.yahoo import YahooProvider
     from trade_advisor.core.config import DataConfig
     from trade_advisor.core.errors import DataError
+    from trade_advisor.data.providers.yahoo import YahooProvider
 
     config = DataConfig(retry_attempts=2, retry_delay_sec=0.01)
-    with patch("trade_advisor.data.providers.yahoo.fetch_yfinance", side_effect=RuntimeError("fail")):
+    with patch(
+        "trade_advisor.data.providers.yahoo.fetch_yfinance", side_effect=RuntimeError("fail")
+    ):
         provider = YahooProvider(config=config)
         with pytest.raises(DataError, match="Failed to fetch"):
             await provider.fetch("TEST", start=None, end=None, interval="1d")

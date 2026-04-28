@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 
-import pytest
-
 
 def test_data_provider_protocol_exists():
     from trade_advisor.data.providers.base import DataProvider
@@ -19,9 +17,7 @@ def test_connectivity_status_model():
     from trade_advisor.data.providers.base import ConnectivityStatus
 
     now = datetime(2024, 1, 1)
-    status = ConnectivityStatus(
-        connected=True, provider_name="test", checked_at=now
-    )
+    status = ConnectivityStatus(connected=True, provider_name="test", checked_at=now)
     assert status.connected is True
     assert status.provider_name == "test"
     assert status.error_message is None

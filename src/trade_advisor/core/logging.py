@@ -97,3 +97,6 @@ def get_logger(name: str | None = None) -> BoundLogger:
         Logger name (typically ``__name__`` of the calling module).
     """
     return structlog.get_logger(name)  # type: ignore[no-any-return]
+
+
+setup_logging = configure_logging

@@ -22,3 +22,6 @@ fix:
 
 dashboard:
     source .venv/bin/activate && ta dashboard
+
+migrate:
+    source .venv/bin/activate && uv run python -m trade_advisor.infra.migrate

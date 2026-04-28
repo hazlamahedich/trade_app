@@ -17,6 +17,7 @@ from pydantic import AwareDatetime, PlainSerializer
 ROUNDING = ROUND_HALF_EVEN
 DISPLAY_PRECISION = 10
 
+
 Price = Decimal
 Quantity = Decimal
 Notional = Decimal
@@ -26,6 +27,11 @@ Signal = Literal[-1, 0, 1]
 Side = Literal["long", "short"]
 Currency = Literal["USD", "EUR", "GBP", "JPY", "CHF", "CAD", "AUD"]
 Timestamp = AwareDatetime
+
+
+def quantize(value: Decimal, decimal_places: int = DISPLAY_PRECISION) -> Decimal:
+    """Quantize a Decimal to the given precision using ROUND_HALF_EVEN."""
+    return value.quantize(Decimal(10) ** -decimal_places, rounding=ROUNDING)
 
 
 def decimal_to_str(value: Decimal) -> str:

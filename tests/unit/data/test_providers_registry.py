@@ -4,7 +4,7 @@ import pytest
 
 
 def test_register_and_get_provider():
-    from trade_advisor.data.providers.registry import _providers, register_provider, get_provider
+    from trade_advisor.data.providers.registry import _providers, get_provider, register_provider
 
     class FakeProvider:
         @property

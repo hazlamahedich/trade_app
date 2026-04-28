@@ -17,6 +17,13 @@ log = logging.getLogger("trade_advisor.secrets")
 
 KEYRING_SERVICE = "trade_advisor"
 
+_ALIASES: dict[str, str] = {
+    "yahoo_finance": "YAHOO_API_KEY",
+    "alpha_vantage": "ALPHA_VANTAGE_API_KEY",
+    "polygon": "POLYGON_API_KEY",
+    "twelvedata": "TWELVEDATA_API_KEY",
+}
+
 SECRET_KEY_NAMES = (
     "YAHOO_API_KEY",
     "ALPHA_VANTAGE_API_KEY",
@@ -129,3 +136,21 @@ def set_key(key_name: str, value: str) -> None:
         raise ValueError(f"Unknown key: {key_name}. Valid keys: {sorted(_env_to_field)}")
     kr = _init_keyring()
     kr.set_password(KEYRING_SERVICE, key_name, value)
+
+
+def get_api_key(provider: str) -> str | None:
+    """Retrieve an API key for a given provider (e.g. 'yahoo_finance').
+
+    Checks keyring first, then environment variables.
+    """
+    env_name = _ALIASES.get(provider, provider.upper() + "_API_KEY")
+    kr = _init_keyring()
+    keyring_val = _read_secret(kr, env_name)
+    if keyring_val is not None and keyring_val.strip():
+        return keyring_val
+    import os
+
+    env_val = os.environ.get(env_name)
+    if env_val is not None and env_val.strip():
+        return env_val
+    return None

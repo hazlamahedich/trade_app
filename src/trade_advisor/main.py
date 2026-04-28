@@ -41,7 +41,9 @@ if _static_dir.exists():
 
 
 async def get_db(request: Request) -> DatabaseManager:
-    db: DatabaseManager = request.app.state.db
+    db: DatabaseManager | None = getattr(request.app.state, "db", None)
+    if db is None:
+        raise RuntimeError("Database not initialized — is the application lifespan configured?")
     return db
 
 

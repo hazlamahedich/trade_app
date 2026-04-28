@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -56,8 +55,22 @@ async def test_twelvedata_fetch_normalizes_json_response():
     api_response = {
         "meta": {"symbol": "EUR/USD"},
         "values": [
-            {"datetime": "2024-01-05", "open": "1.0941", "high": "1.0945", "low": "1.0938", "close": "1.0942", "volume": "0"},
-            {"datetime": "2024-01-04", "open": "1.0901", "high": "1.0905", "low": "1.0898", "close": "1.0910", "volume": "0"},
+            {
+                "datetime": "2024-01-05",
+                "open": "1.0941",
+                "high": "1.0945",
+                "low": "1.0938",
+                "close": "1.0942",
+                "volume": "0",
+            },
+            {
+                "datetime": "2024-01-04",
+                "open": "1.0901",
+                "high": "1.0905",
+                "low": "1.0898",
+                "close": "1.0910",
+                "volume": "0",
+            },
         ],
         "status": "ok",
     }
@@ -81,7 +94,14 @@ async def test_twelvedata_fetch_utc_timestamps():
 
     api_response = {
         "values": [
-            {"datetime": "2024-01-05", "open": "1.0", "high": "1.1", "low": "0.9", "close": "1.05", "volume": "100"},
+            {
+                "datetime": "2024-01-05",
+                "open": "1.0",
+                "high": "1.1",
+                "low": "0.9",
+                "close": "1.05",
+                "volume": "100",
+            },
         ],
         "status": "ok",
     }
@@ -101,7 +121,14 @@ async def test_twelvedata_fetch_forex_pair_format():
 
     api_response = {
         "values": [
-            {"datetime": "2024-01-05", "open": "1.0", "high": "1.1", "low": "0.9", "close": "1.05", "volume": "0"},
+            {
+                "datetime": "2024-01-05",
+                "open": "1.0",
+                "high": "1.1",
+                "low": "0.9",
+                "close": "1.05",
+                "volume": "0",
+            },
         ],
         "status": "ok",
     }
@@ -155,14 +182,21 @@ async def test_twelvedata_missing_api_key_raises_config_error():
 
 @pytest.mark.asyncio
 async def test_twelvedata_rate_limit_tracking():
-    from trade_advisor.data.providers.twelvedata import TwelveDataProvider, _DAILY_CREDIT_LIMIT
+    from trade_advisor.data.providers.twelvedata import TwelveDataProvider
 
     provider = TwelveDataProvider(api_key="test-key")
     assert provider._credits_used_today == 0
 
     api_response = {
         "values": [
-            {"datetime": "2024-01-05", "open": "1.0", "high": "1.1", "low": "0.9", "close": "1.05", "volume": "0"},
+            {
+                "datetime": "2024-01-05",
+                "open": "1.0",
+                "high": "1.1",
+                "low": "0.9",
+                "close": "1.05",
+                "volume": "0",
+            },
         ],
         "status": "ok",
     }
@@ -176,7 +210,7 @@ async def test_twelvedata_rate_limit_tracking():
 
 @pytest.mark.asyncio
 async def test_twelvedata_rate_limit_exhausted():
-    from trade_advisor.data.providers.twelvedata import TwelveDataProvider, _DAILY_CREDIT_LIMIT
+    from trade_advisor.data.providers.twelvedata import _DAILY_CREDIT_LIMIT, TwelveDataProvider
 
     provider = TwelveDataProvider(api_key="test-key")
     provider._credits_used_today = _DAILY_CREDIT_LIMIT

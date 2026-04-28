@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -9,9 +11,9 @@ from plotly.subplots import make_subplots
 
 from trade_advisor.backtest.engine import run_backtest
 from trade_advisor.config import BacktestConfig, CostModel
+from trade_advisor.core.container import bootstrap
 from trade_advisor.data.cache import get_ohlcv, validate_ohlcv
 from trade_advisor.evaluation.metrics import compute_metrics, drawdown_series
-from trade_advisor.strategies.sma_cross import SmaCross
 
 st.set_page_config(page_title="Quant Trade Advisor", layout="wide")
 
@@ -119,11 +121,13 @@ if run_btn:
     for w in warnings:
         st.warning(w)
 
-    strat = SmaCross(fast=int(fast), slow=int(slow), allow_short=allow_short)
+    container = bootstrap()
+    strategy_cls = container.strategy_registry["sma_cross"]
+    strat = strategy_cls(fast=int(fast), slow=int(slow), allow_short=allow_short)
     sig = strat.generate_signals(ohlcv)
 
     cfg = BacktestConfig(
-        initial_cash=float(initial_cash),
+        initial_cash=Decimal(str(initial_cash)),
         cost=CostModel(
             commission_pct=float(commission_pct),  # type: ignore[call-arg]
             slippage_pct=float(slippage_pct),

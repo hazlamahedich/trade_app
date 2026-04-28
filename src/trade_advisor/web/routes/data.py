@@ -35,19 +35,19 @@ _SYMBOL_DETAIL_SQL = """
 SELECT timestamp, open, high, low, close, adj_close, volume, source,
        split_factor, div_factor
 FROM ohlcv_cache
-WHERE symbol = ? AND interval = '1d'
+WHERE symbol = ? AND interval = ?
 ORDER BY timestamp DESC
 LIMIT ? OFFSET ?
 """
 
 _SYMBOL_COUNT_SQL = """
-SELECT COUNT(*) FROM ohlcv_cache WHERE symbol = ? AND interval = '1d'
+SELECT COUNT(*) FROM ohlcv_cache WHERE symbol = ? AND interval = ?
 """
 
 _CORP_ACTION_CHECK_SQL = """
 SELECT timestamp, split_factor, div_factor
 FROM ohlcv_cache
-WHERE symbol = ? AND interval = '1d' AND (ABS(split_factor - 1.0) > 1e-9 OR ABS(div_factor - 1.0) > 1e-9)
+WHERE symbol = ? AND interval = ? AND (ABS(split_factor - 1.0) > 1e-9 OR ABS(div_factor - 1.0) > 1e-9)
 """
 
 _EMPTY_CHECK_SQL = "SELECT COUNT(*) FROM ohlcv_cache"
@@ -88,7 +88,7 @@ def _pagination_error_response(msg: str) -> Response:
     )
 
 
-async def _build_symbol_list(db: DatabaseManager) -> list[dict]:
+async def _build_symbol_list(db: DatabaseManager) -> list[dict[str, Any]]:
     rows = await db.read(_SYMBOL_SUMMARY_SQL)
     symbols = []
     for r in rows:
@@ -109,7 +109,7 @@ async def _build_symbol_list(db: DatabaseManager) -> list[dict]:
 
 
 @router.get("")
-async def data_explorer(request: Request, db: DatabaseManager = _db_dep):
+async def data_explorer(request: Request, db: DatabaseManager = _db_dep) -> Any:
     templates = get_templates()
 
     try:
@@ -161,8 +161,9 @@ async def symbol_detail(
     symbol: str,
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
+    interval: str = Query("1d", description="Data interval (e.g. 1d, 1h, 5m)"),
     db: DatabaseManager = _db_dep,
-):
+) -> Any:
     if page < 1:
         return _pagination_error_response("page must be >= 1")
     if size < 1:
@@ -171,7 +172,7 @@ async def symbol_detail(
     templates = get_templates()
 
     try:
-        count_rows = await db.read(_SYMBOL_COUNT_SQL, (symbol,))
+        count_rows = await db.read(_SYMBOL_COUNT_SQL, (symbol, interval))
         total_bars = count_rows[0][0] if count_rows else 0
     except DataError:
         total_bars = 0
@@ -182,7 +183,7 @@ async def symbol_detail(
 
     offset = (page - 1) * size
     try:
-        rows = await db.read(_SYMBOL_DETAIL_SQL, (symbol, size, offset))
+        rows = await db.read(_SYMBOL_DETAIL_SQL, (symbol, interval, size, offset))
     except DataError as exc:
         ctx = {"error_message": str(exc)}
         resp = templates.TemplateResponse(request, "partials/error_state.html", ctx)
@@ -203,7 +204,8 @@ async def symbol_detail(
             "source": r[7],
             "split_factor": r[8],
             "div_factor": r[9],
-            "is_corporate_action": abs((r[8] or 1.0) - 1.0) > 1e-9 or abs((r[9] or 1.0) - 1.0) > 1e-9,
+            "is_corporate_action": abs((r[8] or 1.0) - 1.0) > 1e-9
+            or abs((r[9] or 1.0) - 1.0) > 1e-9,
         }
         bars.append(bar)
 
@@ -223,11 +225,11 @@ async def symbol_detail(
 
 
 async def _get_anomalies_for_symbol(
-    db: DatabaseManager, symbol: str, bars: list[dict]
-) -> list[dict]:
-    anomalies: list[dict] = []
+    db: DatabaseManager, symbol: str, bars: list[dict[str, Any]], *, interval: str = "1d"
+) -> list[dict[str, Any]]:
+    anomalies: list[dict[str, Any]] = []
     try:
-        corp_rows = await db.read(_CORP_ACTION_CHECK_SQL, (symbol,))
+        corp_rows = await db.read(_CORP_ACTION_CHECK_SQL, (symbol, interval))
         for r in corp_rows:
             ts, sf, df = r
             if abs(sf - 1.0) > 1e-9:
@@ -259,7 +261,7 @@ async def fetch_symbol(
     request: Request,
     symbol: str = Form("SPY"),
     db: DatabaseManager = _db_dep,
-):
+) -> Any:
     templates = get_templates()
     symbol = symbol.strip().upper() or "SPY"
 

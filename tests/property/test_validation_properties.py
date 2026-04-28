@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from hypothesis.extra.pandas import columns, data_frames, series
 
 from trade_advisor.data.validation import (
     AnomalySeverity,
@@ -21,10 +20,16 @@ def _valid_ohlcv_df(n_rows: int) -> pd.DataFrame:
     low = np.minimum(op, close) * (1 - np.abs(rng.standard_normal(n_rows) * 0.005))
     low = np.maximum(low, 0.01)
     vol = rng.integers(500_000, 5_000_000, size=n_rows).astype(float)
-    return pd.DataFrame({
-        "timestamp": pd.date_range("2024-01-01", periods=n_rows, tz="UTC"),
-        "open": op, "high": high, "low": low, "close": close, "volume": vol,
-    })
+    return pd.DataFrame(
+        {
+            "timestamp": pd.date_range("2024-01-01", periods=n_rows, tz="UTC"),
+            "open": op,
+            "high": high,
+            "low": low,
+            "close": close,
+            "volume": vol,
+        }
+    )
 
 
 @settings(max_examples=50)

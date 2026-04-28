@@ -33,6 +33,16 @@ class Strategy(ABC):
     def __init__(self, **params):
         self.params: dict = params
 
+    @property
+    def information_latency(self) -> int:
+        """Minimum data delay in bars.  Override in subclasses as needed."""
+        return 0
+
+    @property
+    def warmup_period(self) -> int:
+        """Bars before signals are valid.  Override in subclasses as needed."""
+        return 0
+
     @abstractmethod
     def generate_signals(self, ohlcv: pd.DataFrame) -> pd.Series:
         """Return a Series of {-1, 0, +1}, indexed like ohlcv."""

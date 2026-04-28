@@ -11,16 +11,16 @@ from trade_advisor.data.schemas import Bar
 
 
 def _valid_bar(**overrides) -> Bar:
-    defaults = dict(
-        symbol="TEST",
-        timestamp=pd.Timestamp("2024-01-01", tz="UTC"),
-        resolution=timedelta(days=1),
-        open=Decimal("100"),
-        high=Decimal("101"),
-        low=Decimal("99"),
-        close=Decimal("100.5"),
-        volume=Decimal("1000000"),
-    )
+    defaults = {
+        "symbol": "TEST",
+        "timestamp": pd.Timestamp("2024-01-01", tz="UTC"),
+        "resolution": timedelta(days=1),
+        "open": Decimal("100"),
+        "high": Decimal("101"),
+        "low": Decimal("99"),
+        "close": Decimal("100.5"),
+        "volume": Decimal("1000000"),
+    }
     defaults.update(overrides)
     return Bar(**defaults)
 
@@ -66,11 +66,11 @@ class TestBarModelValid:
 
 class TestBarHighValidator:
     def test_high_less_than_close_raises(self):
-        with pytest.raises(ValidationError, match="high.*must be >= max"):
+        with pytest.raises(ValidationError, match=r"high.*must be >= max"):
             _valid_bar(high=Decimal("99"), close=Decimal("100.5"))
 
     def test_high_less_than_open_raises(self):
-        with pytest.raises(ValidationError, match="high.*must be >= max"):
+        with pytest.raises(ValidationError, match=r"high.*must be >= max"):
             _valid_bar(
                 high=Decimal("98"), low=Decimal("95"), open=Decimal("100"), close=Decimal("99")
             )
@@ -82,13 +82,13 @@ class TestBarHighValidator:
 
 class TestBarLowValidator:
     def test_low_greater_than_open_raises(self):
-        with pytest.raises(ValidationError, match="low.*must be <= min"):
+        with pytest.raises(ValidationError, match=r"low.*must be <= min"):
             _valid_bar(
                 high=Decimal("105"), low=Decimal("102"), open=Decimal("100"), close=Decimal("101")
             )
 
     def test_low_greater_than_close_raises(self):
-        with pytest.raises(ValidationError, match="low.*must be <= min"):
+        with pytest.raises(ValidationError, match=r"low.*must be <= min"):
             _valid_bar(low=Decimal("101"), open=Decimal("99"), close=Decimal("100"))
 
     def test_low_equals_open_valid(self):

@@ -17,14 +17,14 @@ from trade_advisor.data.validation import (
 
 
 def _make_df(rows: int = 100, **overrides) -> pd.DataFrame:
-    base = dict(
-        timestamp=pd.date_range("2024-01-01", periods=rows, tz="UTC"),
-        open=np.linspace(100, 110, rows),
-        high=np.linspace(101, 111, rows),
-        low=np.linspace(99, 109, rows),
-        close=np.linspace(100.5, 110.5, rows),
-        volume=np.full(rows, 1_000_000.0),
-    )
+    base = {
+        "timestamp": pd.date_range("2024-01-01", periods=rows, tz="UTC"),
+        "open": np.linspace(100, 110, rows),
+        "high": np.linspace(101, 111, rows),
+        "low": np.linspace(99, 109, rows),
+        "close": np.linspace(100.5, 110.5, rows),
+        "volume": np.full(rows, 1_000_000.0),
+    }
     base.update(overrides)
     return pd.DataFrame(base)
 
@@ -38,11 +38,11 @@ class TestDetectAnomaliesHappyPath:
         assert result.error_count == 0
         assert result.warning_count == 0
 
-    def test_quality_mask_clean(self):
+    def test_error_mask_clean(self):
         df = _make_df()
         result = detect_anomalies(df, symbol="TEST")
-        assert result.quality_mask is not None
-        assert not result.quality_mask.any()
+        assert result.error_mask is not None
+        assert not result.error_mask.any()
 
 
 class TestEdgeCases:
@@ -51,26 +51,35 @@ class TestEdgeCases:
         result = detect_anomalies(df, symbol="TEST")
         assert result.level == ValidationLevel.PASS
         assert result.anomalies == []
-        assert result.quality_mask is None
+        assert result.error_mask is None
 
     def test_single_row(self):
-        df = pd.DataFrame({
-            "timestamp": [pd.Timestamp("2024-01-01", tz="UTC")],
-            "open": [100.0], "high": [101.0], "low": [99.0],
-            "close": [100.5], "volume": [1e6],
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": [pd.Timestamp("2024-01-01", tz="UTC")],
+                "open": [100.0],
+                "high": [101.0],
+                "low": [99.0],
+                "close": [100.5],
+                "volume": [1e6],
+            }
+        )
         result = detect_anomalies(df, symbol="TEST")
         assert result.level == ValidationLevel.PASS
         assert result.anomaly_count == 0
 
     def test_multi_symbol_raises(self):
-        df = pd.DataFrame({
-            "symbol": ["A", "B"],
-            "timestamp": pd.date_range("2024-01-01", periods=2, tz="UTC"),
-            "open": [100.0, 200.0], "high": [101.0, 201.0],
-            "low": [99.0, 199.0], "close": [100.5, 200.5],
-            "volume": [1e6, 1e6],
-        })
+        df = pd.DataFrame(
+            {
+                "symbol": ["A", "B"],
+                "timestamp": pd.date_range("2024-01-01", periods=2, tz="UTC"),
+                "open": [100.0, 200.0],
+                "high": [101.0, 201.0],
+                "low": [99.0, 199.0],
+                "close": [100.5, 200.5],
+                "volume": [1e6, 1e6],
+            }
+        )
         with pytest.raises(ValueError, match="single-symbol"):
             detect_anomalies(df, symbol="TEST")
 
@@ -108,12 +117,16 @@ class TestDuplicateTimestamps:
     def test_duplicates_detected(self):
         ts = list(pd.date_range("2024-01-01", periods=5, tz="UTC"))
         ts.append(ts[-1])
-        df = pd.DataFrame({
-            "timestamp": ts,
-            "open": [100.0] * 6, "high": [101.0] * 6,
-            "low": [99.0] * 6, "close": [100.5] * 6,
-            "volume": [1e6] * 6,
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": ts,
+                "open": [100.0] * 6,
+                "high": [101.0] * 6,
+                "low": [99.0] * 6,
+                "close": [100.5] * 6,
+                "volume": [1e6] * 6,
+            }
+        )
         result = detect_anomalies(df, symbol="TEST")
         dupe_anomalies = [a for a in result.anomalies if "duplicate" in a.message.lower()]
         assert len(dupe_anomalies) >= 1
@@ -141,8 +154,9 @@ class TestFlatPriceGaps:
         close = [100.0, 101.0, 102.0, 200.0, 203.0]
         high = [c + 1 for c in close]
         low = [c - 1 for c in close]
-        df = _make_df(rows=5, close=close, high=high, low=low,
-                      open=[100.0, 101.0, 102.0, 200.0, 203.0])
+        df = _make_df(
+            rows=5, close=close, high=high, low=low, open=[100.0, 101.0, 102.0, 200.0, 203.0]
+        )
         result = detect_anomalies(df, symbol="TEST")
         gap_anomalies = [a for a in result.anomalies if "gap" in a.message.lower()]
         assert len(gap_anomalies) >= 1
@@ -154,7 +168,8 @@ class TestZeroVolume:
         df = _make_df(rows=15, volume=vol)
         result = detect_anomalies(df, symbol="TEST")
         vol_anomalies = [
-            a for a in result.anomalies
+            a
+            for a in result.anomalies
             if "volume" in a.message.lower() or "zero" in a.message.lower()
         ]
         assert len(vol_anomalies) >= 1
@@ -165,7 +180,8 @@ class TestZeroVolume:
         df = _make_df(rows=25, volume=vol)
         result = detect_anomalies(df, symbol="TEST")
         vol_anomalies = [
-            a for a in result.anomalies
+            a
+            for a in result.anomalies
             if "volume" in a.message.lower() or "zero" in a.message.lower()
         ]
         assert len(vol_anomalies) == 0
@@ -214,12 +230,16 @@ class TestTimestampGaps:
     def test_gap_detected_with_expected_interval(self):
         ts = list(pd.date_range("2024-01-01", periods=4, freq="B", tz="UTC"))
         ts.insert(2, ts[1] + timedelta(days=10))
-        df = pd.DataFrame({
-            "timestamp": ts,
-            "open": [100.0] * 5, "high": [101.0] * 5,
-            "low": [99.0] * 5, "close": [100.5] * 5,
-            "volume": [1e6] * 5,
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": ts,
+                "open": [100.0] * 5,
+                "high": [101.0] * 5,
+                "low": [99.0] * 5,
+                "close": [100.5] * 5,
+                "volume": [1e6] * 5,
+            }
+        )
         result = detect_anomalies(df, symbol="TEST", expected_interval=timedelta(days=1))
         gap_anomalies = [a for a in result.anomalies if "Timestamp gap" in a.message]
         assert len(gap_anomalies) >= 1
@@ -227,12 +247,16 @@ class TestTimestampGaps:
     def test_no_gap_detection_without_interval(self):
         ts = list(pd.date_range("2024-01-01", periods=4, freq="B", tz="UTC"))
         ts.insert(2, ts[1] + timedelta(days=10))
-        df = pd.DataFrame({
-            "timestamp": ts,
-            "open": [100.0] * 5, "high": [101.0] * 5,
-            "low": [99.0] * 5, "close": [100.5] * 5,
-            "volume": [1e6] * 5,
-        })
+        df = pd.DataFrame(
+            {
+                "timestamp": ts,
+                "open": [100.0] * 5,
+                "high": [101.0] * 5,
+                "low": [99.0] * 5,
+                "close": [100.5] * 5,
+                "volume": [1e6] * 5,
+            }
+        )
         result = detect_anomalies(df, symbol="TEST")
         gap_anomalies = [a for a in result.anomalies if "Timestamp gap" in a.message]
         assert len(gap_anomalies) == 0
@@ -253,35 +277,38 @@ class TestInputImmutability:
 
 
 class TestQualityMask:
-    def test_quality_mask_marks_error_rows(self):
+    def test_error_mask_marks_error_rows(self):
         df = _make_df(rows=5, close=[100.0, np.nan, np.nan, np.nan, 104.0])
         result = detect_anomalies(df, symbol="TEST")
-        assert result.quality_mask is not None
-        assert result.quality_mask.any()
+        assert result.error_mask is not None
+        assert result.error_mask.any()
         nan_errors = [
-            a for a in result.anomalies
+            a
+            for a in result.anomalies
             if a.severity == AnomalySeverity.ERROR and a.row_index is not None
         ]
         for a in nan_errors:
-            assert result.quality_mask.iloc[a.row_index]
+            assert result.error_mask.iloc[a.row_index]
 
-    def test_quality_mask_all_false_on_pass(self):
+    def test_error_mask_all_false_on_pass(self):
         df = _make_df(rows=10)
         result = detect_anomalies(df, symbol="TEST")
-        assert result.quality_mask is not None
-        assert not result.quality_mask.any()
+        assert result.error_mask is not None
+        assert not result.error_mask.any()
 
 
 class TestValidationResult:
     def test_level_fail_with_error(self):
         result = ValidationResult(
             level=ValidationLevel.FAIL,
-            anomalies=[Anomaly(
-                severity=AnomalySeverity.ERROR,
-                action=AnomalyAction.EXCLUDE,
-                message="test",
-                symbol="T",
-            )],
+            anomalies=[
+                Anomaly(
+                    severity=AnomalySeverity.ERROR,
+                    action=AnomalyAction.EXCLUDE,
+                    message="test",
+                    symbol="T",
+                )
+            ],
         )
         assert result.error_count == 1
         assert result.warning_count == 0
@@ -289,12 +316,14 @@ class TestValidationResult:
     def test_level_warn_with_warning(self):
         result = ValidationResult(
             level=ValidationLevel.WARN,
-            anomalies=[Anomaly(
-                severity=AnomalySeverity.WARNING,
-                action=AnomalyAction.FLAG,
-                message="test",
-                symbol="T",
-            )],
+            anomalies=[
+                Anomaly(
+                    severity=AnomalySeverity.WARNING,
+                    action=AnomalyAction.FLAG,
+                    message="test",
+                    symbol="T",
+                )
+            ],
         )
         assert result.error_count == 0
         assert result.warning_count == 1
