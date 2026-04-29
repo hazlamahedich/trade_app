@@ -8,35 +8,28 @@ Remove @pytest.mark.skip when implementing Story 2.4.
 
 from __future__ import annotations
 
-import pytest
-
 
 class TestStory24EventDrivenBacktest:
     """Story 2.4: Event-driven backtest for realistic order simulation."""
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_event_driven_engine_exists(self):
         from trade_advisor.backtest.event_driven import EventDrivenEngine
 
         assert EventDrivenEngine is not None
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_execution_router_protocol_exists(self):
         from trade_advisor.backtest.execution import ExecutionRouter
 
         assert ExecutionRouter is not None
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_order_spec_type_exists(self):
         from trade_advisor.backtest.execution import OrderSpec
 
         spec = OrderSpec(side="buy", order_type="market", quantity=100)
         assert spec is not None
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_event_driven_supports_market_orders(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.event_driven import EventDrivenEngine
-
         from trade_advisor.strategies.sma_cross import SmaCross
 
         strategy = SmaCross(fast=20, slow=50)
@@ -46,10 +39,8 @@ class TestStory24EventDrivenBacktest:
         assert hasattr(result, "equity")
         assert hasattr(result, "trades")
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_event_driven_supports_limit_orders(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.event_driven import EventDrivenEngine
-
         from trade_advisor.strategies.sma_cross import SmaCross
 
         strategy = SmaCross(fast=20, slow=50)
@@ -59,10 +50,8 @@ class TestStory24EventDrivenBacktest:
         limit_trades = result.trades[result.trades["order_type"] == "limit"]
         assert len(limit_trades) >= 0
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_event_driven_supports_stop_loss(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.event_driven import EventDrivenEngine
-
         from trade_advisor.strategies.sma_cross import SmaCross
 
         strategy = SmaCross(fast=20, slow=50)
@@ -71,11 +60,9 @@ class TestStory24EventDrivenBacktest:
         result = engine.run(ohlcv_500, signals)
         assert hasattr(result, "equity")
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_same_backtest_result_schema(self, ohlcv_500, backtest_config):
-        from trade_advisor.backtest.event_driven import EventDrivenEngine
-
         from trade_advisor.backtest.engine import BacktestResult
+        from trade_advisor.backtest.event_driven import EventDrivenEngine
         from trade_advisor.strategies.sma_cross import SmaCross
 
         strategy = SmaCross(fast=20, slow=50)
@@ -84,12 +71,11 @@ class TestStory24EventDrivenBacktest:
         result = engine.run(ohlcv_500, signals)
         assert isinstance(result, BacktestResult)
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.4 not yet implemented")
     def test_convergence_vectorized_vs_event_driven(self, ohlcv_500, zero_cost_config):
         import pandas as pd
-        from trade_advisor.backtest.event_driven import EventDrivenEngine
 
         from trade_advisor.backtest.engine import run_backtest
+        from trade_advisor.backtest.event_driven import EventDrivenEngine
         from trade_advisor.strategies.sma_cross import SmaCross
 
         strategy = SmaCross(fast=20, slow=50)

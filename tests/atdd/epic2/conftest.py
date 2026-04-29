@@ -73,10 +73,7 @@ def ohlcv_flat() -> pd.DataFrame:
 
 @pytest.fixture
 def ohlcv_50_symbols() -> list[pd.DataFrame]:
-    return [
-        _synthetic_ohlcv(n=2520, seed=i, symbol=f"SYM{i:03d}")
-        for i in range(50)
-    ]
+    return [_synthetic_ohlcv(n=2520, seed=i, symbol=f"SYM{i:03d}") for i in range(50)]
 
 
 @pytest.fixture

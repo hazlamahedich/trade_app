@@ -321,17 +321,27 @@ class TestSignalValidation:
 
     def test_signal_zero_produces_zero(self):
         assert fixed_fractional(Decimal("100000"), Decimal("0.10"), signal=0.0) == Decimal("0")
-        assert half_kelly(Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=0.0) == Decimal("0")
-        assert vol_targeting(Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=0.0) == Decimal("0")
+        assert half_kelly(
+            Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=0.0
+        ) == Decimal("0")
+        assert vol_targeting(
+            Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=0.0
+        ) == Decimal("0")
         assert inverse_vol(Decimal("100000"), Decimal("0.20"), signal=0.0) == Decimal("0")
 
     def test_negative_signal_same_as_positive(self):
         pos = fixed_fractional(Decimal("100000"), Decimal("0.10"), signal=0.5)
         neg = fixed_fractional(Decimal("100000"), Decimal("0.10"), signal=-0.5)
         assert pos == neg
-        assert half_kelly(Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=-0.5) == half_kelly(Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=0.5)
-        assert vol_targeting(Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=-0.5) == vol_targeting(Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=0.5)
-        assert inverse_vol(Decimal("100000"), Decimal("0.20"), signal=-0.5) == inverse_vol(Decimal("100000"), Decimal("0.20"), signal=0.5)
+        assert half_kelly(
+            Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=-0.5
+        ) == half_kelly(Decimal("100000"), 0.6, Decimal("0.02"), Decimal("0.01"), signal=0.5)
+        assert vol_targeting(
+            Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=-0.5
+        ) == vol_targeting(Decimal("100000"), Decimal("0.15"), Decimal("0.25"), signal=0.5)
+        assert inverse_vol(Decimal("100000"), Decimal("0.20"), signal=-0.5) == inverse_vol(
+            Decimal("100000"), Decimal("0.20"), signal=0.5
+        )
 
 
 # ── shared: win_rate validation ───────────────────────────────

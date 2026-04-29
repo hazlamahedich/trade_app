@@ -81,4 +81,5 @@ markers = [
     "integration: requires network access (yfinance, external APIs)",
     "e2e: end-to-end tests requiring full system",
     "slow: tests exceeding 5 seconds",
+    "convergence: vectorized vs event-driven engine convergence tests",
 ]

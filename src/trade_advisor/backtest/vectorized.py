@@ -39,10 +39,9 @@ the sanctioned I/O edge per the project Decimal convention.
 
 from __future__ import annotations
 
-import warnings
-
 import pandas as pd
 
+from trade_advisor.backtest._equity import compute_equity_curve
 from trade_advisor.backtest.engine import BacktestResult, _extract_trades
 from trade_advisor.config import BacktestConfig
 
@@ -135,40 +134,22 @@ def run_vectorized_backtest(
         )
 
     asset_ret = price.pct_change().fillna(0.0)
-
-    pos = sig.copy()
-    delta = pos.diff().abs().fillna(pos.abs())
-
     cost_pct = cfg.cost.commission_pct + cfg.cost.slippage_pct
-    cost_drag = delta * cost_pct
 
-    strategy_ret = pos * asset_ret - cost_drag
-
-    equity = (1.0 + strategy_ret).cumprod() * float(cfg.initial_cash)
-    equity.name = "equity"
-
-    nan_mask = equity.isna()
-    if nan_mask.any():
-        nan_idx = equity.index[nan_mask].tolist()
-        if cfg.strict:
-            raise ValueError(
-                f"Equity curve contains NaN at {nan_idx[:10]}{'...' if len(nan_idx) > 10 else ''}. "
-                f"Check for NaN prices or zero-price bars in input data."
-            )
-        equity = equity.ffill().fillna(float(cfg.initial_cash))
-        warnings.warn(
-            f"Equity curve had {len(nan_idx)} NaN value(s) forward-filled. "
-            f"First NaN at index {nan_idx[0]}. Set strict=False to suppress.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
+    equity, strategy_ret, pos = compute_equity_curve(
+        signal=sig,
+        asset_ret=asset_ret,
+        cost_pct=cost_pct,
+        initial_cash=float(cfg.initial_cash),
+        strict=cfg.strict,
+    )
 
     trades = _extract_trades(pos, price)
 
     return BacktestResult(
         equity=equity,
-        returns=strategy_ret.rename("returns"),
-        positions=pos.rename("position"),
+        returns=strategy_ret,
+        positions=pos,
         trades=trades,
         config=cfg,
         meta={"bars": len(price), "n_trades": len(trades)},

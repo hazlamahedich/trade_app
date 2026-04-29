@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-29T19:00:00Z
+last_updated: 2026-04-29T20:00:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -61,7 +61,7 @@ development_status:
   2-1-built-in-sma-crossover-strategy: done
   2-2-position-sizing-methods: done
   2-3-vectorized-backtest-engine: done
-  2-4-event-driven-backtest-engine: ready-for-dev
+  2-4-event-driven-backtest-engine: done
   2-5-convergence-testing-between-engines: backlog
   2-6-transaction-cost-engine: backlog
   2-7-portfolio-trade-level-metrics: backlog
