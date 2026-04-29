@@ -64,3 +64,10 @@
 - `delta` first-bar cost semantics — charges entry cost on first bar. Carried from old engine. [vectorized.py:116]
 - `type: ignore[call-arg]` on BacktestConfig() — pre-existing suppress. [vectorized.py:80]
 - `_extract_trades` silently drops last unclosed trade — if position is open at end of series, no post-loop flush appends it. Pre-existing from old engine. Suggest fixing in Story 2.4 when trade extraction gets refactored. [engine.py:92-121]
+
+## Deferred from: code review of 2-6-transaction-cost-engine.md (2026-04-29)
+
+- T-1 convention is static constant, not true per-bar T-1 — effective_cost_pct computed once using initial_cash. Acknowledged in spec Phase 1 limitation. ATR-varying slippage deferred to convergence-hardening story. [_equity.py:91]
+- apply_costs notional (entry_price × weight) diverges from equity curve's effective_cost_pct — post-hoc cost attribution uses per-trade notional while equity uses constant scalar. Intentional design split per spec.
+- No forced-flat guard in vectorized equity when equity hits zero — positions continue after equity = 0, creating silent inconsistency between equity/returns/positions series. Pre-existing from Story 2.3. [_equity.py:101]
+- Bar-0 cost drag vs equity inconsistency in event_driven stop-loss path — ret_arr[0] can be negative from cost_drag while equity_arr[0] = initial_cash. Pre-existing from Story 2.4. [event_driven.py:265]

@@ -38,7 +38,6 @@ class TestStory212Reproducibility:
     def test_run_metadata_stored_in_db(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.run_id import generate_run_id
 
-
         config = {
             "strategy": "sma_cross",
             "fast": 20,

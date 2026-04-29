@@ -28,6 +28,7 @@ import numpy as np
 import pandas as pd
 
 from trade_advisor.backtest._equity import compute_equity_curve
+from trade_advisor.backtest.costs import CostEngine
 from trade_advisor.backtest.engine import BacktestResult, _extract_trades
 from trade_advisor.config import BacktestConfig
 
@@ -91,8 +92,14 @@ class EventDrivenEngine:
                 positions=pd.Series(dtype="float64", name="position"),
                 trades=pd.DataFrame(
                     columns=[
-                        "entry_ts", "exit_ts", "side", "entry_price",
-                        "exit_price", "return", "weight", "order_type",
+                        "entry_ts",
+                        "exit_ts",
+                        "side",
+                        "entry_price",
+                        "exit_price",
+                        "return",
+                        "weight",
+                        "order_type",
                     ]
                 ),
                 config=cfg,
@@ -122,15 +129,15 @@ class EventDrivenEngine:
                 f"Signal values must be in [-1.0, +1.0]; got range [{_sig_min}, {_sig_max}]"
             )
 
-        cost_pct = float(cfg.cost.commission_pct + cfg.cost.slippage_pct)
+        cost_engine = CostEngine.from_model(cfg.cost)
         initial_cash = float(cfg.initial_cash)
 
         has_extended_orders = self._stop_loss_pct is not None
 
         if not has_extended_orders:
-            return self._run_market_only(ohlcv, sig, price, cfg, cost_pct, initial_cash)
+            return self._run_market_only(ohlcv, sig, price, cfg, cost_engine, initial_cash)
 
-        return self._run_with_stop_loss(ohlcv, sig, price, cfg, cost_pct, initial_cash)
+        return self._run_with_stop_loss(ohlcv, sig, price, cfg, cost_engine, initial_cash)
 
     def _run_market_only(
         self,
@@ -138,7 +145,7 @@ class EventDrivenEngine:
         sig: pd.Series,
         price: pd.Series,
         cfg: BacktestConfig,
-        cost_pct: float,
+        cost_engine: CostEngine,
         initial_cash: float,
     ) -> BacktestResult:
         """Market-orders-only path — delegates to shared compute_equity_curve."""
@@ -147,8 +154,8 @@ class EventDrivenEngine:
         equity, strategy_ret, pos = compute_equity_curve(
             signal=sig,
             asset_ret=asset_ret,
-            cost_pct=cost_pct,
             initial_cash=initial_cash,
+            cost_engine=cost_engine,
             strict=cfg.strict,
         )
 
@@ -159,8 +166,14 @@ class EventDrivenEngine:
         else:
             trades = pd.DataFrame(
                 columns=[
-                    "entry_ts", "exit_ts", "side", "entry_price",
-                    "exit_price", "return", "weight", "order_type",
+                    "entry_ts",
+                    "exit_ts",
+                    "side",
+                    "entry_price",
+                    "exit_price",
+                    "return",
+                    "weight",
+                    "order_type",
                 ]
             )
 
@@ -179,13 +192,17 @@ class EventDrivenEngine:
         sig: pd.Series,
         price: pd.Series,
         cfg: BacktestConfig,
-        cost_pct: float,
+        cost_engine: CostEngine,
         initial_cash: float,
     ) -> BacktestResult:
         """Bar-by-bar engine with stop-loss support."""
         stop_pct = self._stop_loss_pct
         if stop_pct is None:
             raise ValueError("stop_loss_pct must be set for stop-loss backtest")
+
+        effective_cost_pct = (cost_engine.fixed_per_trade / initial_cash) + (
+            cost_engine.bps / 10_000
+        ) if initial_cash > 0 else 0.0
 
         n = len(price)
         equity_arr = np.empty(n, dtype=np.float64)
@@ -220,10 +237,15 @@ class EventDrivenEngine:
                         if entry_price == 0.0 or not np.isfinite(entry_price):
                             log.warning(
                                 "Skipping stop-loss trade with invalid entry_price=%.6f at bar %d",
-                                entry_price, i,
+                                entry_price,
+                                i,
                             )
                         else:
                             ret = (exit_px / entry_price - 1.0) * current_side
+                            notional = abs(1.0 * exit_px)
+                            breakdown = cost_engine.compute_breakdown(
+                                notional, price=exit_px
+                            )
                             trade_records.append(
                                 {
                                     "entry_ts": entry_ts,
@@ -234,6 +256,7 @@ class EventDrivenEngine:
                                     "return": ret,
                                     "weight": 1.0,
                                     "order_type": "stop",
+                                    "cost_components": breakdown,
                                 }
                             )
                     current_side = 0
@@ -243,7 +266,7 @@ class EventDrivenEngine:
                     target_pos = 0.0
 
             delta = abs(target_pos - prev_pos)
-            cost_drag = delta * cost_pct
+            cost_drag = delta * effective_cost_pct
             strat_ret = current_pos * asset_ret_i - cost_drag
             ret_arr[i] = strat_ret
             pos_arr[i] = target_pos
@@ -277,10 +300,15 @@ class EventDrivenEngine:
                     if entry_price == 0.0 or not np.isfinite(entry_price):
                         log.warning(
                             "Skipping market-exit trade with invalid entry_price=%.6f at bar %d",
-                            entry_price, i,
+                            entry_price,
+                            i,
                         )
                     else:
                         ret = (exit_px / entry_price - 1.0) * current_side
+                        notional = abs(1.0 * exit_px)
+                        breakdown = cost_engine.compute_breakdown(
+                            notional, price=exit_px
+                        )
                         trade_records.append(
                             {
                                 "entry_ts": entry_ts,
@@ -291,6 +319,7 @@ class EventDrivenEngine:
                                 "return": ret,
                                 "weight": 1.0,
                                 "order_type": "market",
+                                "cost_components": breakdown,
                             }
                         )
 
@@ -332,8 +361,14 @@ class EventDrivenEngine:
         else:
             trades = pd.DataFrame(
                 columns=[
-                    "entry_ts", "exit_ts", "side", "entry_price",
-                    "exit_price", "return", "weight", "order_type",
+                    "entry_ts",
+                    "exit_ts",
+                    "side",
+                    "entry_price",
+                    "exit_price",
+                    "return",
+                    "weight",
+                    "order_type",
                 ]
             )
 

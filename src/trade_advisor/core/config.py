@@ -12,7 +12,7 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from trade_advisor.core.logging import configure_logging as _configure_logging
@@ -35,20 +35,13 @@ class DataConfig(BaseModel):
 
 class CostModel(BaseModel):
     commission_pct: float = Field(0.0, ge=0, description="Fraction per trade, e.g. 0.0005 = 5bps")
-    commission_fixed: float = Field(
-        0.0, ge=0, description="Fixed $ per trade (not yet implemented)"
+    commission_fixed: float = Field(0.0, ge=0, description="Fixed dollar amount per trade")
+    slippage_pct: float = Field(
+        0.0,
+        ge=0,
+        description="Fractional slippage. Also consider slippage_atr_fraction for volatility-scaled slippage.",
     )
-    slippage_pct: float = Field(0.0005, ge=0, description="Fraction of price lost to slippage")
-
-    @model_validator(mode="after")
-    def _guard_unimplemented_fixed_commission(self):
-        if self.commission_fixed != 0:
-            raise ValueError(
-                "commission_fixed is not yet implemented by the backtest engine. "
-                "Use commission_pct for percentage-based costs, or wait for the "
-                "equity-tracking engine refactor."
-            )
-        return self
+    slippage_atr_fraction: float = Field(0.0, ge=0, description="Slippage as fraction of ATR")
 
 
 class BacktestConfig(BaseModel):

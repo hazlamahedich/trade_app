@@ -12,10 +12,9 @@ equity.  This is NOT constant-shares / buy-and-hold sizing.
 
 Cost model
 ----------
-``cost_pct`` = one-way cost as a fraction of traded notional relative to
-current equity.  The drag ``delta * cost_pct`` is O(cost²) approximate —
-correct for retail equity costs (0-10 bps) but incorrect for high-cost
-instruments.  Proper fix deferred to Story 2.6 (Transaction Cost Engine).
+Costs are applied via ``CostEngine`` (Story 2.6).  The vectorized path uses a
+constant ``effective_cost_pct`` derived from the engine's fixed and bps
+components.  ATR-varying slippage is applied only in the event-driven path.
 
 Determinism
 -----------
@@ -42,6 +41,7 @@ from __future__ import annotations
 import pandas as pd
 
 from trade_advisor.backtest._equity import compute_equity_curve
+from trade_advisor.backtest.costs import CostEngine
 from trade_advisor.backtest.engine import BacktestResult, _extract_trades
 from trade_advisor.config import BacktestConfig
 
@@ -134,13 +134,13 @@ def run_vectorized_backtest(
         )
 
     asset_ret = price.pct_change().fillna(0.0)
-    cost_pct = cfg.cost.commission_pct + cfg.cost.slippage_pct
+    cost_engine = CostEngine.from_model(cfg.cost)
 
     equity, strategy_ret, pos = compute_equity_curve(
         signal=sig,
         asset_ret=asset_ret,
-        cost_pct=cost_pct,
         initial_cash=float(cfg.initial_cash),
+        cost_engine=cost_engine,
         strict=cfg.strict,
     )
 
