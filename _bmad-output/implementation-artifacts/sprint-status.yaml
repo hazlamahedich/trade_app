@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-29T18:00:00Z
+last_updated: 2026-04-30T18:00:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -65,10 +65,10 @@ development_status:
   2-5-convergence-testing-between-engines: backlog
   2-6-transaction-cost-engine: done
   2-7-portfolio-trade-level-metrics: done
-  2-8-mandatory-baseline-comparison-integrity-checks: backlog
-  2-9-strategy-lab-backtest-viewer-web-pages: backlog
-  2-10-resultcard-emotional-states: backlog
-  2-11-remix-button-auto-suggested-variants: backlog
+  2-8-mandatory-baseline-comparison-integrity-checks: done
+  2-9-strategy-lab-backtest-viewer-web-pages: done
+  2-10-resultcard-emotional-states: done
+  2-11-remix-button-auto-suggested-variants: done
   2-12-strategy-reproducibility-deterministic-run-ids: backlog
   epic-2-retrospective: optional
 

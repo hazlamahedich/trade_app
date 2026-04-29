@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Strategy Lab — Quant Trade Advisor{% endblock %}
+{% block content %}
+<h2 style="margin-top:0">Strategy Lab</h2>
+<div class="card">
+    <form id="strategy-form"
+          hx-post="/strategies/run"
+          hx-target="#results-container"
+          hx-indicator="#run-spinner"
+          hx-swap="innerHTML">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div>
+                <label for="strategy_type"><strong>Strategy</strong></label>
+                <select id="strategy_type" name="strategy_type" style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+                    <option value="sma" selected>SMA Crossover</option>
+                </select>
+            </div>
+            <div>
+                <label for="symbol"><strong>Symbol</strong></label>
+                <input type="text" id="symbol" name="symbol" value="{{ default_symbol }}"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+            <div>
+                <label for="fast"><strong>Fast Period</strong></label>
+                <input type="number" id="fast" name="fast" value="{{ default_fast }}" min="1"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+            <div>
+                <label for="slow"><strong>Slow Period</strong></label>
+                <input type="number" id="slow" name="slow" value="{{ default_slow }}" min="1"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+            <div>
+                <label for="interval"><strong>Interval</strong></label>
+                <select id="interval" name="interval" style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+                    <option value="1d" {% if default_interval == '1d' %}selected{% endif %}>1d (Daily)</option>
+                    <option value="1h" {% if default_interval == '1h' %}selected{% endif %}>1h (Hourly)</option>
+                    <option value="5m" {% if default_interval == '5m' %}selected{% endif %}>5m (5 Min)</option>
+                </select>
+            </div>
+            <div>
+                <label for="initial_cash"><strong>Initial Cash ($)</strong></label>
+                <input type="number" id="initial_cash" name="initial_cash" value="{{ default_initial_cash }}" min="1"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+            <div>
+                <label for="start_date"><strong>Start Date</strong></label>
+                <input type="date" id="start_date" name="start_date" value="{{ default_start }}"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+            <div>
+                <label for="end_date"><strong>End Date</strong></label>
+                <input type="date" id="end_date" name="end_date" value="{{ default_end }}"
+                       style="width:100%;padding:0.4rem;margin-top:0.25rem;">
+            </div>
+        </div>
+        <fieldset style="margin-top:1rem;">
+            <legend><strong>Engine Mode</strong></legend>
+            <label style="margin-right:1rem;">
+                <input type="radio" name="engine_mode" value="vectorized" checked> Vectorized
+            </label>
+            <label>
+                <input type="radio" name="engine_mode" value="event_driven"> Event-Driven
+            </label>
+        </fieldset>
+        <details style="margin-top:1rem;">
+            <summary><strong>Transaction Costs</strong></summary>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top:0.5rem;">
+                <div>
+                    <label for="commission_pct">Commission (fraction, e.g. 0.001 = 0.1%)</label>
+                    <input type="number" id="commission_pct" name="commission_pct"
+                           value="{{ default_commission }}" step="0.0001" min="0"
+                           style="width:100%;padding:0.4rem;">
+                </div>
+                <div>
+                    <label for="slippage_pct">Slippage (fraction, e.g. 0.0005 = 0.05%)</label>
+                    <input type="number" id="slippage_pct" name="slippage_pct"
+                           value="{{ default_slippage }}" step="0.0001" min="0"
+                           style="width:100%;padding:0.4rem;">
+                </div>
+            </div>
+        </details>
+        <div style="margin-top:1.25rem; display:flex; align-items:center; gap:1rem;">
+            <button type="submit" class="btn-primary">Run Backtest</button>
+            <span id="run-spinner" class="spinner htmx-indicator"></span>
+        </div>
+    </form>
+</div>
+<div id="results-container"></div>
+{% endblock %}

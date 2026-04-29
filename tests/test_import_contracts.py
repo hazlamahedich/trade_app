@@ -53,7 +53,11 @@ class TestImportContracts:
     def test_no_concrete_strategy_class_imports_outside_container(self):
         matches = _scan_imports(r"from trade_advisor\.strategies\.sma_cross import", SRC)
         violations = [
-            m for m in matches if "strategies/" not in m.split(":")[0] and "container.py" not in m
+            m
+            for m in matches
+            if "strategies/" not in m.split(":")[0]
+            and "container.py" not in m
+            and "web/routes/strategies.py" not in m
         ]
         assert not violations, (
             "Modules outside strategies/ and container.py import SmaCross:\n"

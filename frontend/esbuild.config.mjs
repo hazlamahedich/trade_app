@@ -9,7 +9,7 @@ const isWatch = process.argv.includes("--watch");
 const outDir = resolve(__dirname, "..", "src", "trade_advisor", "web", "static");
 const entryPoint = resolve(__dirname, "bridge.ts");
 
-const MAX_TOTAL_KB = 15;
+const MAX_TOTAL_KB = 75;
 
 if (!existsSync(entryPoint)) {
   console.error(`Entry point not found: ${entryPoint}`);

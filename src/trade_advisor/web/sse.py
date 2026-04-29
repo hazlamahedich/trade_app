@@ -24,4 +24,10 @@ class ErrorEvent(SSEEvent):
     detail: str = ""
 
 
+class StrategyForkedEvent(SSEEvent):
+    event_type: Literal["strategy_forked"] = "strategy_forked"
+    source_run_id: str
+    variant_params: dict = {}
+
+
 # TODO: ResultEvent — Story 1.7

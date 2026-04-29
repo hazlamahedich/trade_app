@@ -71,3 +71,30 @@
 - apply_costs notional (entry_price × weight) diverges from equity curve's effective_cost_pct — post-hoc cost attribution uses per-trade notional while equity uses constant scalar. Intentional design split per spec.
 - No forced-flat guard in vectorized equity when equity hits zero — positions continue after equity = 0, creating silent inconsistency between equity/returns/positions series. Pre-existing from Story 2.3. [_equity.py:101]
 - Bar-0 cost drag vs equity inconsistency in event_driven stop-loss path — ret_arr[0] can be negative from cost_drag while equity_arr[0] = initial_cash. Pre-existing from Story 2.4. [event_driven.py:265]
+
+## Deferred from: code review of 2-8-mandatory-baseline-comparison-integrity-checks.md (2026-04-29)
+
+- `should_halt_display` is always `not is_valid` — redundant but designed for future warning-only halt conditions. Extensibility design, not a bug. [integrity.py:85-86]
+- `signals` parameter in `stratify_by_regime` is unused — accepted for API contract / future signal-dependent regime logic. [regime.py:122-123]
+- `IntegrityResult` dataclass is mutable — callers could accidentally mutate shared results. Design choice. [integrity.py:18-23]
+- Rolling quantile lookback creates ~60-bar blind spot at start of backtest — documented min_periods=60 behavior, spec-compliant. [regime.py:89]
+
+## Deferred from: code review of 2-9-strategy-lab-backtest-viewer-web-pages.md (2026-04-29)
+
+- SSE progress is disconnected fiction — no client-side EventSource connects to /strategies/run/{run_id}/stream. The endpoint emits fake 0.1s sleep stages. Full SSE wiring is Story 2.10 scope. [strategies.py:227-261]
+- No CSRF protection on POST /strategies/run — CSRF middleware is a project-wide concern, not specific to this story. [strategies.py:run_backtest]
+- strategy_type param accepted but always instantiates SmaCross — multi-strategy dispatch is future scope. [strategies.py:92]
+- adj_close NULL propagates NaN through signals — pre-existing data quality issue from DuckDB schema. [strategies.py:134, sma_cross.py:57]
+- Intraday interval + large slow period = OOM risk — reasonable defaults (slow=50) mitigate; adding guard deferred. [strategies.py:149]
+- Container resize not detected (only window resize in equityChart) — ResizeObserver upgrade is polish. [equityChart.tsx:80-85]
+- _is_htmx() duplicated across route modules — pre-existing pattern from data.py; extract when more routes added. [strategies.py, backtests.py]
+ - Event-driven mode runs backtest twice (once discarded, once via compute_with_baseline) — will be resolved by patch for finding 1. [strategies.py:170-179]
+
+## Deferred from: code review of story 2.11 remix button (2026-04-30)
+
+- No CSRF protection on variant chip POST forms — project-wide concern, not story-specific. [backtest_viewer.html:237]
+- InMemoryResultStore is process-global singleton with no persistence — results vanish on restart. Architectural decision, not a bug. [result_store.py:45-49]
+- Eviction uses O(n) min() scan on every store past capacity — acceptable at MAX_ENTRIES=100; refactor if cap grows. [result_store.py:36]
+- Golden cross variant may duplicate user's current config when fast=50/slow=200 — no dedup check against original. [remix.py:49-59]
+- generate_run_id() has no collision retry loop — 48-bit entropy at 100 entries is negligible risk. [result_store.py:31]
+- source_run_id has no server-side format validation — accepts arbitrary strings. Low risk in single-user tool. [strategies.py:169]
