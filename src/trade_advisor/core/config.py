@@ -57,6 +57,10 @@ class BacktestConfig(BaseModel):
     )
     cost: CostModel = CostModel()  # type: ignore[call-arg]
     freq: str = "1D"
+    strict: bool = Field(
+        True,
+        description="If True, raise on NaN in equity curve. If False, forward-fill and warn.",
+    )
 
 
 class RiskConfig(BaseModel):

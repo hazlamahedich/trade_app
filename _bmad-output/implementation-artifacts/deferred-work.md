@@ -53,3 +53,14 @@
 - `SizingConfig.method` is unconstrained `str` — no Literal type or discriminated union enforcement. `SizingConfig(method="bogus")` is valid. Consider `Literal` type when integrating with strategy config in Story 2.3
 - `FixedFractionalConfig` Pydantic model rejects `fraction>1` (Field le=1) while raw `fixed_fractional()` silently clamps to `MAX_FRACTION`. Two code paths produce inconsistent behavior for same logical input. Revisit when engine integration adds the canonical call path
 - `SizingConfig` base class has no abstract `compute()` method — no type-level guarantee that a SizingConfig instance supports compute(). Add Protocol or abstract method when polymorphic dispatch is needed in Story 2.3
+
+## Deferred from: code review of 2-3-vectorized-backtest-engine.md (2026-04-29)
+
+- Zero/negative prices cause `inf` in equity curve — `pct_change()` produces `inf` for zero prices; `fillna` doesn't catch `inf`. Pre-existing issue from old engine. [vectorized.py:113]
+- Signal length mismatch silently truncated via `reindex` — short signals padded with 0.0, long signals truncated. Pre-existing from old engine. [vectorized.py:104]
+- `sizing` parameter accepted but never used — by design per spec ("establish parameter slot, deferred"). [vectorized.py:52]
+- `@runtime_checkable` only checks method names, not signatures — known Python limitation. [protocols.py:21]
+- Duplicate timestamps cause `reindex` misalignment — no uniqueness check on timestamps. Pre-existing. [vectorized.py:100-104]
+- `delta` first-bar cost semantics — charges entry cost on first bar. Carried from old engine. [vectorized.py:116]
+- `type: ignore[call-arg]` on BacktestConfig() — pre-existing suppress. [vectorized.py:80]
+- `_extract_trades` silently drops last unclosed trade — if position is open at end of series, no post-loop flush appends it. Pre-existing from old engine. Suggest fixing in Story 2.4 when trade extraction gets refactored. [engine.py:92-121]
