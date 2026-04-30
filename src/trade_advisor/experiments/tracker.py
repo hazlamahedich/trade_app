@@ -27,7 +27,7 @@ _EXPERIMENT_COL_NAMES = [c.strip() for c in _EXPERIMENT_COLUMNS.split(",")]
 
 
 class HashedRunInputs(BaseModel):
-    config: dict
+    config: dict[str, Any]
     data_fingerprint: str = ""
     code_version: str = ""
     package_versions: str = ""
@@ -78,7 +78,7 @@ def _normalize_value(v: Any) -> Any:
     return v
 
 
-def _normalize_config(config: dict) -> dict:
+def _normalize_config(config: dict[str, Any]) -> dict[str, Any]:
     normalized: dict[str, Any] = {}
     for k, v in config.items():
         if isinstance(v, dict):
@@ -90,7 +90,7 @@ def _normalize_config(config: dict) -> dict:
     return normalized
 
 
-def compute_config_hash(config: dict) -> str:
+def compute_config_hash(config: dict[str, Any]) -> str:
     normalized = _normalize_config(config)
     canonical = json.dumps(normalized, sort_keys=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

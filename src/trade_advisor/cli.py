@@ -10,11 +10,12 @@ import subprocess
 import sys
 import time
 from collections import Counter
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal
 from logging import getLogger
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 import pandas as pd
 import typer
@@ -124,7 +125,7 @@ def dashboard() -> None:
     subprocess.run(cmd, check=False)
 
 
-def _print_metrics(symbol: str, params: dict, metrics, meta: dict) -> None:
+def _print_metrics(symbol: str, params: dict[str, Any], metrics: Any, meta: dict[str, Any]) -> None:
     table = Table(title=f"Backtest: {symbol}  {params}", show_header=True)
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right", style="magenta")
@@ -250,7 +251,7 @@ data_app = typer.Typer(help="Data operations: fetch, validate, status")
 app.add_typer(data_app, name="data")
 
 
-def _output_result(data: dict, *, fmt: str, cons: Console) -> None:
+def _output_result(data: dict[str, Any], *, fmt: str, cons: Console) -> None:
     if fmt == "json":
         print(json.dumps(data, indent=2, default=str))
     else:
@@ -265,7 +266,7 @@ def _output_error(message: str, *, fmt: str, exit_code: int = 1) -> NoReturn:
     raise typer.Exit(code=exit_code)
 
 
-def _render_fetch_rich(data: dict, cons: Console) -> None:
+def _render_fetch_rich(data: dict[str, Any], cons: Console) -> None:
     cons.print(
         f"[green]OK[/green] {data['symbol']}: {data['bar_count']} bars "
         f"{data.get('start_date', '?')} → {data.get('end_date', '?')}"
@@ -302,7 +303,7 @@ def _fetch_with_retry(
     *,
     refresh: bool = False,
     max_retries: int = 2,
-    fetcher=None,
+    fetcher: Callable[..., pd.DataFrame] | None = None,
 ) -> tuple[pd.DataFrame, int]:
     max_retries = max(0, max_retries)
     last_exc: Exception | None = None
@@ -554,7 +555,7 @@ def data_validate(
         _output_error(str(exc), fmt=format)
 
 
-def _render_validate_rich(data: dict, cons: Console) -> None:
+def _render_validate_rich(data: dict[str, Any], cons: Console) -> None:
     cons.print(
         f"\n[bold]Validation: {data['symbol']}[/bold] "
         f"({data['bar_count']} bars, {data['interval']})"
@@ -620,14 +621,14 @@ def _categorize_anomaly(message: str) -> str:
     return "Other"
 
 
-def _query_cached_symbols() -> list[dict]:
+def _query_cached_symbols() -> list[dict[str, Any]]:
     from trade_advisor.core.config import DatabaseConfig as _DBC
     from trade_advisor.data.storage import DataRepository
     from trade_advisor.infra.db import DatabaseManager
 
     config = _DBC()
 
-    async def _fetch():
+    async def _fetch() -> list[dict[str, Any]]:
         async with DatabaseManager(config) as db:
             repo = DataRepository(db)
             rows = await db.read(

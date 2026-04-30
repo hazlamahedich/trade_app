@@ -398,3 +398,124 @@ class TestEdgeCases:
         assert any("fewer signals" in h for h in hints)
         for h in hints:
             assert "smoother" not in h.lower()
+
+
+class TestUndoRemix:
+    @pytest.mark.test_id("2.11-ATDD-039")
+    @pytest.mark.p1
+    def test_register_and_undo_remix(self):
+        from trade_advisor.web.services.remix import register_remix, undo_remix
+
+        register_remix("child1", "parent1")
+        parent = undo_remix("child1")
+        assert parent == "parent1"
+
+    @pytest.mark.test_id("2.11-ATDD-040")
+    @pytest.mark.p1
+    def test_can_undo_within_window(self):
+        from trade_advisor.web.services.remix import can_undo, register_remix
+
+        register_remix("child2", "parent2")
+        assert can_undo("child2") is True
+
+    @pytest.mark.test_id("2.11-ATDD-041")
+    @pytest.mark.p1
+    def test_cannot_undo_unknown_run(self):
+        from trade_advisor.web.services.remix import can_undo
+
+        assert can_undo("nonexistent_child") is False
+
+    @pytest.mark.test_id("2.11-ATDD-042")
+    @pytest.mark.p1
+    def test_undo_remix_returns_none_for_unknown(self):
+        from trade_advisor.web.services.remix import undo_remix
+
+        assert undo_remix("nonexistent_child") is None
+
+    @pytest.mark.test_id("2.11-ATDD-043")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_delete_endpoint_undo_success(self, async_client_with_data):
+        from trade_advisor.web.services.remix import register_remix
+
+        run_id = await _run_backtest(async_client_with_data)
+        data = dict(RUN_DATA)
+        data["source_run_id"] = run_id
+        data["fast"] = "15"
+        resp = await async_client_with_data.post(
+            "/strategies/run", data=data, headers={"hx-request": "true"}
+        )
+        child_run_id = resp.headers["hx-redirect"].split("/")[-1]
+
+        register_remix(child_run_id, run_id)
+
+        resp = await async_client_with_data.delete(f"/backtests/{child_run_id}/remix")
+        assert resp.status_code == 200
+        assert "undone" in resp.text.lower() or resp.headers.get("hx-redirect")
+
+    @pytest.mark.test_id("2.11-ATDD-044")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_delete_endpoint_expired_window(self, async_client_with_data):
+        from trade_advisor.web.services.remix import _remix_registry
+
+        run_id = await _run_backtest(async_client_with_data)
+        data = dict(RUN_DATA)
+        data["source_run_id"] = run_id
+        data["fast"] = "15"
+        resp = await async_client_with_data.post(
+            "/strategies/run", data=data, headers={"hx-request": "true"}
+        )
+        child_run_id = resp.headers["hx-redirect"].split("/")[-1]
+
+        _remix_registry[child_run_id] = (run_id, 0)
+
+        resp = await async_client_with_data.delete(f"/backtests/{child_run_id}/remix")
+        assert resp.status_code == 410
+
+    @pytest.mark.test_id("2.11-ATDD-045")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_delete_endpoint_not_in_registry(self, async_client_with_data):
+        resp = await async_client_with_data.delete("/backtests/nonexistent/remix")
+        assert resp.status_code in (404, 410)
+
+    @pytest.mark.test_id("2.11-ATDD-046")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_undo_deletes_child_from_store(self, async_client_with_data):
+        from trade_advisor.web.services.remix import register_remix
+        from trade_advisor.web.services.result_store import get_result_store
+
+        run_id = await _run_backtest(async_client_with_data)
+        data = dict(RUN_DATA)
+        data["source_run_id"] = run_id
+        data["fast"] = "15"
+        resp = await async_client_with_data.post(
+            "/strategies/run", data=data, headers={"hx-request": "true"}
+        )
+        child_run_id = resp.headers["hx-redirect"].split("/")[-1]
+
+        register_remix(child_run_id, run_id)
+        await async_client_with_data.delete(f"/backtests/{child_run_id}/remix")
+
+        store = get_result_store()
+        deleted = await store.get(child_run_id)
+        assert deleted is None
+
+    @pytest.mark.test_id("2.11-ATDD-047")
+    @pytest.mark.p1
+    @pytest.mark.asyncio
+    async def test_template_shows_undo_toast_for_remix(self, async_client_with_data):
+        run_id = await _run_backtest(async_client_with_data)
+        data = dict(RUN_DATA)
+        data["source_run_id"] = run_id
+        data["fast"] = "15"
+        resp = await async_client_with_data.post(
+            "/strategies/run", data=data, headers={"hx-request": "true"}
+        )
+        child_run_id = resp.headers["hx-redirect"].split("/")[-1]
+        response = await async_client_with_data.get(f"/backtests/{child_run_id}")
+        assert response.status_code == 200
+        assert "undo-toast" in response.text
+        assert "undo-countdown" in response.text

@@ -250,6 +250,28 @@
     <br>Baseline comparison uses always-in position from bar 0. Run created {{ created_at }}.
 </div>
 
+{% if source_run_id is defined and source_run_id and not source_expired %}
+<div id="undo-toast" class="card" style="position:fixed;bottom:1.5rem;right:1.5rem;z-index:50;display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;background:var(--bg-card);border:1px solid var(--border-color);box-shadow:0 4px 12px rgba(0,0,0,0.15);max-width:320px;">
+    <span style="font-size:0.85rem;">Remix created — <span id="undo-countdown" class="data-font">10</span>s to undo</span>
+    <button class="btn-primary" style="font-size:0.8rem;padding:0.3rem 0.6rem;"
+            hx-delete="/backtests/{{ run_id }}/remix"
+            hx-target="#undo-toast"
+            hx-swap="outerHTML"
+            hx-confirm="Undo this remix and return to the original?">Undo</button>
+</div>
+<script>
+(function(){
+    var sec=10,el=document.getElementById("undo-countdown"),toast=document.getElementById("undo-toast");
+    if(!el||!toast)return;
+    var iv=setInterval(function(){
+        sec--;el.textContent=sec;
+        if(sec<=0){clearInterval(iv);toast.style.transition="opacity 0.3s";toast.style.opacity="0";
+        setTimeout(function(){toast.remove();},300);}
+    },1000);
+})();
+</script>
+{% endif %}
+
 {% if remix_url is defined and remix_url %}
 <div style="margin-top:0.75rem;">
     <a href="{{ remix_url }}" class="remix-button remix-button--edit" aria-label="Remix this backtest with adjusted parameters">

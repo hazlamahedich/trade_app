@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -27,7 +27,7 @@ class ErrorEvent(SSEEvent):
 class StrategyForkedEvent(SSEEvent):
     event_type: Literal["strategy_forked"] = "strategy_forked"
     source_run_id: str
-    variant_params: dict = {}
+    variant_params: dict[str, Any] = {}
 
 
 # TODO: ResultEvent — Story 1.7

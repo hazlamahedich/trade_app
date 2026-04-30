@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import logging
 import warnings
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -212,7 +213,7 @@ class EventDrivenEngine:
         equity_arr[0] = initial_cash
         prev_pos = 0.0
 
-        trade_records: list[dict] = []
+        trade_records: list[dict[str, Any]] = []
         current_side = 0
         entry_ts = None
         entry_price = np.nan

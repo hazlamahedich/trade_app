@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -101,7 +101,7 @@ class AppConfig(BaseSettings):
     risk: RiskConfig | None = None
     execution: ExecutionConfig = ExecutionConfig()  # type: ignore[call-arg]
     determinism: DeterminismConfig = DeterminismConfig()  # type: ignore[call-arg]
-    database: DatabaseConfig = DatabaseConfig()  # type: ignore[call-arg]
+    database: DatabaseConfig = DatabaseConfig()
     logging: LoggingConfig = LoggingConfig()  # type: ignore[call-arg]
     secrets: SecretsConfig | None = None
 
@@ -118,7 +118,7 @@ def load_config(
     *,
     override_env: dict[str, str] | None = None,
 ) -> FullConfig:
-    kwargs: dict = {}
+    kwargs: dict[str, Any] = {}
     if env_file is not None:
         kwargs["_env_file"] = str(env_file)
     if override_env:

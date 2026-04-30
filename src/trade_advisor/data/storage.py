@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pandas as pd
 from pydantic import BaseModel
@@ -84,7 +85,7 @@ class FreshnessStatus(BaseModel):
 class DataRepository:
     def __init__(self, db: DatabaseManager, config: DataConfig | None = None) -> None:
         self._db = db
-        cfg = config or DataConfig()
+        cfg = config or DataConfig()  # type: ignore[call-arg]
         self._staleness_threshold_sec = cfg.staleness_threshold_sec
 
     async def store(self, df: pd.DataFrame, *, provider_name: str | None = None) -> None:
@@ -140,7 +141,7 @@ class DataRepository:
                 (provider_name, incoming_source, intervals),
             )
 
-    def _prepare_rows(self, df: pd.DataFrame) -> list[tuple]:
+    def _prepare_rows(self, df: pd.DataFrame) -> list[tuple[Any, ...]]:
         values = df[_OHLCV_INSERT_COLUMNS].values.tolist()
         return [tuple(row) for row in values]
 
@@ -235,13 +236,13 @@ def check_freshness(symbol: str, interval: str, *, max_age_hours: int = 24) -> F
     raise NotImplementedError("Use DataRepository.check_freshness() with an async context")
 
 
-def get_data_freshness(symbol: str, interval: str):
+def get_data_freshness(symbol: str, interval: str) -> FreshnessStatus:
     from trade_advisor.core.config import DatabaseConfig
     from trade_advisor.infra.db import DatabaseManager
 
     config = DatabaseConfig()
 
-    async def _fetch():
+    async def _fetch() -> FreshnessStatus:
         async with DatabaseManager(config) as db:
             repo = DataRepository(db)
             return await repo.check_freshness(symbol, interval)

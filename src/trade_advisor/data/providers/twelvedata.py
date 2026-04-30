@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 import httpx
@@ -24,11 +24,11 @@ _PER_MINUTE_CREDIT_LIMIT = 8
 class TwelveDataProvider:
     def __init__(self, api_key: str | None = None, config: DataConfig | None = None) -> None:
         self._api_key = api_key
-        cfg = config or DataConfig()
+        cfg = config or DataConfig()  # type: ignore[call-arg]
         self._retry_attempts = cfg.retry_attempts
         self._retry_delay_sec = cfg.retry_delay_sec
         self._credits_used_today = 0
-        self._credit_reset_date: datetime | None = None
+        self._credit_reset_date: date | None = None
 
     def _check_credit_reset(self) -> None:
         today = datetime.now(UTC).date()

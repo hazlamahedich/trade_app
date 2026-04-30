@@ -17,7 +17,7 @@ log = logging.getLogger(__name__)
 
 class YahooProvider:
     def __init__(self, config: DataConfig | None = None) -> None:
-        cfg = config or DataConfig()
+        cfg = config or DataConfig()  # type: ignore[call-arg]
         self._retry_attempts = cfg.retry_attempts
         self._retry_delay_sec = cfg.retry_delay_sec
 

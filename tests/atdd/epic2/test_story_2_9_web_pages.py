@@ -390,3 +390,61 @@ class TestSerialization:
         assert isinstance(ctx["max_drawdown"], float)
         assert isinstance(ctx["sharpe"], float)
         assert ctx["total_return"] == 0.25
+
+
+class TestSparklineAnimation:
+    @pytest.mark.test_id("2.9-ATDD-024")
+    @pytest.mark.p1
+    def test_sparkline_draw_duration_constant(self):
+        from trade_advisor.web.components.result_card import SPARKLINE_DRAW_DURATION_MS
+
+        assert SPARKLINE_DRAW_DURATION_MS == 600
+
+    @pytest.mark.test_id("2.9-ATDD-025")
+    @pytest.mark.p1
+    def test_render_sparkline_produces_svg(self):
+        from trade_advisor.web.components.result_card import render_sparkline
+
+        svg = render_sparkline([1.0, 2.0, 1.5, 3.0, 2.5])
+        assert svg.startswith("<svg")
+        assert "sparkline" in svg
+        assert "polyline" in svg
+
+    @pytest.mark.test_id("2.9-ATDD-026")
+    @pytest.mark.p1
+    def test_render_sparkline_animation_600ms(self):
+        from trade_advisor.web.components.result_card import render_sparkline
+
+        svg = render_sparkline([1.0, 2.0, 3.0])
+        assert "600ms" in svg
+        assert "sparkline-draw" in svg
+
+    @pytest.mark.test_id("2.9-ATDD-027")
+    @pytest.mark.p2
+    def test_render_sparkline_empty_for_single_value(self):
+        from trade_advisor.web.components.result_card import render_sparkline
+
+        assert render_sparkline([1.0]) == ""
+
+    @pytest.mark.test_id("2.9-ATDD-028")
+    @pytest.mark.p2
+    def test_render_sparkline_has_aria_label(self):
+        from trade_advisor.web.components.result_card import render_sparkline
+
+        svg = render_sparkline([1.0, 2.0, 3.0])
+        assert "aria-label" in svg
+        assert "3 data points" in svg
+
+    @pytest.mark.test_id("2.9-ATDD-029")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_base_html_has_sparkline_keyframes(self, async_client_with_data):
+        response = await async_client_with_data.get("/strategies")
+        assert "sparkline-draw" in response.text
+
+    @pytest.mark.test_id("2.9-ATDD-030")
+    @pytest.mark.p2
+    @pytest.mark.asyncio
+    async def test_base_html_reduced_motion_disables_sparkline(self, async_client_with_data):
+        response = await async_client_with_data.get("/strategies")
+        assert "stroke-dashoffset: 0" in response.text

@@ -13,7 +13,7 @@ from trade_advisor.backtest.metrics.trade_analysis import TradeAnalysis
 class StoredResult:
     comparison: BaselineComparison
     trade_analysis: TradeAnalysis
-    config_dict: dict
+    config_dict: dict[str, object]
     run_id: str
     created_at: datetime
     engine_mode: str
@@ -44,6 +44,13 @@ class InMemoryResultStore:
     async def get(self, run_id: str) -> StoredResult | None:
         async with self._lock:
             return self._store.get(run_id)
+
+    async def delete(self, run_id: str) -> bool:
+        async with self._lock:
+            if run_id in self._store:
+                del self._store[run_id]
+                return True
+            return False
 
 
 _store = InMemoryResultStore()

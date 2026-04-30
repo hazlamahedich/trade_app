@@ -6,7 +6,7 @@ from typing import Any
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 
 log = logging.getLogger(__name__)
 
@@ -133,7 +133,7 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
     except Exception:
         log.warning("Emotional state classification failed, using neutral", exc_info=True)
 
-    variants: list[dict] = []
+    variants: list[dict[str, Any]] = []
     remix_url = ""
     parent_source_run_id: str | None = None
     source_expired = False
@@ -144,7 +144,7 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
             k: v for k, v in stored.config_dict.items() if k != "source_run_id"
         }
         strategy_type = stored.config_dict.get("strategy_type", "sma")
-        variant_objs = generate_variants(config_dict_for_variants, strategy_type)
+        variant_objs = generate_variants(config_dict_for_variants, str(strategy_type))
         variants = [v.model_dump() for v in variant_objs]
 
         remix_params = {
@@ -154,12 +154,11 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
         }
         remix_url = f"/strategies?{urlencode(remix_params)}" if remix_params else ""
 
-        parent_source_run_id = getattr(stored, "source_run_id", None) or stored.config_dict.get(
+        raw_parent = getattr(stored, "source_run_id", None) or stored.config_dict.get(
             "source_run_id"
         )
-        if parent_source_run_id is not None:
-            parent_source_run_id = str(parent_source_run_id)
-        if parent_source_run_id:
+        if raw_parent is not None:
+            parent_source_run_id = str(raw_parent)
             parent_result = await store.get(parent_source_run_id)
             if parent_result is None:
                 source_expired = True
@@ -195,3 +194,23 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
         "is_duplicate": stored.is_duplicate,
     }
     return templates.TemplateResponse(request, "pages/backtest_viewer.html", ctx)
+
+
+@router.delete("/{run_id}/remix")
+async def undo_remix_endpoint(run_id: str) -> Any:
+    from trade_advisor.web.services.remix import can_undo, undo_remix
+    from trade_advisor.web.services.result_store import get_result_store
+
+    if not can_undo(run_id):
+        return HTMLResponse("Undo window expired", status_code=410)
+
+    parent_run_id = undo_remix(run_id)
+    if parent_run_id is None:
+        return HTMLResponse("Not found", status_code=404)
+
+    store = get_result_store()
+    await store.delete(run_id)
+
+    resp = HTMLResponse("Remix undone", status_code=200)
+    resp.headers["HX-Redirect"] = f"/backtests/{parent_run_id}"
+    return resp

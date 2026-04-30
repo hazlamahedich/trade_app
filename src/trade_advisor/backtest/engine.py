@@ -18,6 +18,7 @@ Model assumptions (shared by both entry points):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -33,7 +34,7 @@ class BacktestResult:
     positions: pd.Series
     trades: pd.DataFrame
     config: BacktestConfig
-    meta: dict = field(default_factory=dict)
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def to_frame(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -83,7 +84,7 @@ def _extract_trades(pos: pd.Series, price: pd.Series) -> pd.DataFrame:
             ]
         )
 
-    records: list[dict] = []
+    records: list[dict[str, Any]] = []
     current_side: int = 0
     entry_ts = None
     entry_price = np.nan
@@ -96,7 +97,7 @@ def _extract_trades(pos: pd.Series, price: pd.Series) -> pd.DataFrame:
                 weight_accum.append(abs(float(new_pos)))
             continue
         if current_side != 0 and entry_ts is not None:
-            exit_px = float(price.at[ts])
+            exit_px = float(price.at[ts])  # type: ignore[arg-type]
             ret = (exit_px / entry_price - 1.0) * current_side
             avg_weight = sum(weight_accum) / len(weight_accum) if weight_accum else 1.0
             records.append(
@@ -112,7 +113,7 @@ def _extract_trades(pos: pd.Series, price: pd.Series) -> pd.DataFrame:
             )
         if new_side != 0:
             entry_ts = ts
-            entry_price = float(price.at[ts])
+            entry_price = float(price.at[ts])  # type: ignore[arg-type]
             weight_accum = [abs(float(new_pos))]
         else:
             entry_ts = None

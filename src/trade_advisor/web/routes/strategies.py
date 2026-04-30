@@ -6,6 +6,7 @@ import logging
 import math
 import re
 import sys
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -228,8 +229,14 @@ async def run_backtest(
         from trade_advisor.core.types import from_float
 
         config = BacktestConfig(
-            initial_cash=str(from_float(initial_cash)),
-            cost=CostModel(commission_pct=commission_pct, slippage_pct=slippage_pct),
+            initial_cash=from_float(initial_cash),
+            cost=CostModel(
+                commission_pct=commission_pct,
+                slippage_pct=slippage_pct,
+                commission_fixed=0.0,
+                slippage_atr_fraction=0.0,
+            ),
+            strict=True,
         )
 
         if engine_mode == "event_driven":
@@ -376,6 +383,12 @@ async def run_backtest(
 
     if source_run_id:
         try:
+            from trade_advisor.web.services.remix import register_remix
+
+            register_remix(run_id, source_run_id)
+        except Exception:
+            log.warning("Remix registration failed", exc_info=True)
+        try:
             from trade_advisor.web.sse import StrategyForkedEvent
 
             StrategyForkedEvent(
@@ -406,7 +419,7 @@ async def run_backtest(
 
 @router.get("/run/{run_id}/stream")
 async def stream_progress(run_id: str) -> StreamingResponse:
-    async def _event_generator():
+    async def _event_generator() -> AsyncIterator[str]:
         for i, stage in enumerate(_PROGRESS_STAGES):
             payload = {
                 "event_type": "progress",

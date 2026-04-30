@@ -9,6 +9,7 @@ and a default :class:`SimpleRegimeClassifier` implementation.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
@@ -26,7 +27,7 @@ class RegimeStratification:
     def __getitem__(self, key: str) -> pd.Series:
         return self.labels[key]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.labels)
 
     def keys(self) -> list[str]:
@@ -77,7 +78,7 @@ class SimpleRegimeClassifier:
                 "low_vol": empty_mask.copy(),
             }
 
-        log_prices = np.log(close.astype(float).clip(lower=1e-10))
+        log_prices: pd.Series = np.log(close.astype(float).clip(lower=1e-10))  # type: ignore[assignment]
         x = np.arange(self._trend_window, dtype=float)
 
         rolling_slope = log_prices.rolling(self._trend_window).apply(

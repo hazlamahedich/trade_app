@@ -45,6 +45,7 @@ import asyncio
 import contextlib
 import enum
 import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 import duckdb
@@ -133,7 +134,7 @@ class _ReaderWriterLock:
         self._waiting_writers = 0
 
     @contextlib.asynccontextmanager
-    async def read(self):
+    async def read(self) -> AsyncIterator[None]:
         async with self._cond:
             while self._writer or self._waiting_writers > 0:
                 await self._cond.wait()
@@ -147,7 +148,7 @@ class _ReaderWriterLock:
                     self._cond.notify_all()
 
     @contextlib.asynccontextmanager
-    async def write(self):
+    async def write(self) -> AsyncIterator[None]:
         async with self._cond:
             self._waiting_writers += 1
             while self._writer or self._readers > 0:
@@ -206,7 +207,12 @@ class DatabaseManager:
             raise
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:  # type: ignore[override]
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
+    ) -> None:
         async with self._rw_lock.write():
             try:
                 if self._conn is not None:

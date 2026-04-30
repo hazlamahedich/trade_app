@@ -47,7 +47,7 @@ def _init_keyring() -> Any:
         try:
             from keyring.backends.macOS import Keyring as MacOSKeyring
 
-            keyring.set_keyring(MacOSKeyring())
+            keyring.set_keyring(MacOSKeyring())  # type: ignore[no-untyped-call]
         except Exception:
             log.warning("Failed to pin macOS Keychain backend; using default keyring")
     return keyring

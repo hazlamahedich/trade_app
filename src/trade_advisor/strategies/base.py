@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
 import pandas as pd
 
@@ -22,7 +23,7 @@ import pandas as pd
 @dataclass
 class StrategyMeta:
     name: str
-    params: dict
+    params: dict[str, Any]
 
 
 class Strategy(ABC):
@@ -30,8 +31,8 @@ class Strategy(ABC):
 
     name: str = "base"
 
-    def __init__(self, **params):
-        self.params: dict = params
+    def __init__(self, **params: Any) -> None:
+        self.params: dict[str, Any] = params
 
     @property
     def information_latency(self) -> int:

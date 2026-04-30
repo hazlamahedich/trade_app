@@ -22,6 +22,7 @@ import json
 import random
 import struct
 from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 
@@ -92,8 +93,8 @@ class SeedManager:
         fold_id: int | None = None,
         *,
         num_aug_samples: int = 3,
-    ) -> dict:
-        manifest: dict = {
+    ) -> dict[str, Any]:
+        manifest: dict[str, Any] = {
             "_experiment_id": experiment_id,
             "_fold_id": fold_id,
             "global_seed": self.global_seed,
@@ -116,7 +117,7 @@ class SeedManager:
             manifest["model_init_seed"] = self.derive_model_init_seed(experiment_id, fold_id)
         return manifest
 
-    def verify_manifest(self, manifest: dict) -> bool:
+    def verify_manifest(self, manifest: dict[str, Any]) -> bool:
         experiment_id = manifest.get("_experiment_id")
         if not experiment_id:
             raise IntegrityError("Seed manifest missing '_experiment_id'")

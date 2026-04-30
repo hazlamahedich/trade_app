@@ -5,13 +5,15 @@ Uses a local file store at ``mlruns/`` in project root. No server required.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Any
 
 try:
-    import mlflow  # type: ignore
+    import mlflow
 except ImportError:  # pragma: no cover
-    mlflow = None  # type: ignore
+    mlflow = None  # type: ignore[assignment]
 
 from trade_advisor.config import MLRUNS_DIR
 
@@ -28,7 +30,9 @@ def init_tracking(experiment: str = "default") -> None:
 
 
 @contextmanager
-def run(experiment: str = "default", run_name: str | None = None):
+def run(
+    experiment: str = "default", run_name: str | None = None
+) -> Iterator[Any]:
     """Context manager wrapping mlflow.start_run.
 
     No-ops silently if mlflow is not installed.
@@ -42,13 +46,13 @@ def run(experiment: str = "default", run_name: str | None = None):
         yield active
 
 
-def log_params(params: dict) -> None:
+def log_params(params: dict[str, Any]) -> None:
     if mlflow is None:
         return
     mlflow.log_params({k: v for k, v in params.items() if v is not None})
 
 
-def log_metrics(metrics: dict) -> None:
+def log_metrics(metrics: dict[str, Any]) -> None:
     if mlflow is None:
         return
     mlflow.log_metrics({k: float(v) for k, v in metrics.items()})

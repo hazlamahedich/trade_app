@@ -40,7 +40,7 @@ def compute_relative_metrics(
     if len(s) < 2:
         return (float("nan"), float("nan"), float("nan"))
 
-    cov_mat = np.cov(s.values, b.values, ddof=1)
+    cov_mat = np.cov(s.values, b.values, ddof=1)  # type: ignore[arg-type]
     beta = float(cov_mat[0, 1] / cov_mat[1, 1]) if cov_mat[1, 1] != 0 else float("nan")
 
     mean_s = float(s.mean())
@@ -49,7 +49,7 @@ def compute_relative_metrics(
     alpha = (mean_s - beta * mean_b) * ann**2 if np.isfinite(beta) else float("nan")
 
     diff = (s - b).values
-    daily_te = float(np.std(diff, ddof=1))
+    daily_te = float(np.std(diff, ddof=1))  # type: ignore[arg-type]
     information_ratio = (mean_s - mean_b) * ann / daily_te if daily_te > 0 else 0.0
 
     return (float(alpha), float(beta), float(information_ratio))

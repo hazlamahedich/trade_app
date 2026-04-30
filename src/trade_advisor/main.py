@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -17,7 +18,7 @@ def _web_dir() -> Path:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     config = DatabaseConfig()
     db = DatabaseManager(config)
     async with db:
@@ -57,11 +58,11 @@ app.include_router(data_router)  # type: ignore[has-type]
 
 from trade_advisor.web.routes.strategies import router as strategies_router  # noqa: E402
 
-app.include_router(strategies_router)  # type: ignore[has-type]
+app.include_router(strategies_router)
 
 from trade_advisor.web.routes.backtests import router as backtests_router  # noqa: E402
 
-app.include_router(backtests_router)  # type: ignore[has-type]
+app.include_router(backtests_router)
 
 
 @app.get("/health")

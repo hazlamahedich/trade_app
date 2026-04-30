@@ -6,6 +6,10 @@ to keep the database schema in sync with code definitions.
 
 from __future__ import annotations
 
+import asyncio
+from pathlib import Path
+from typing import Any
+
 from trade_advisor.infra.migrate import MigrationRunner
 
 
@@ -22,18 +26,19 @@ def run_auto_migrations(db_path: str = ":memory:") -> list[str]:
     list[str]
         List of applied migration descriptions.
     """
-    import asyncio
+    import concurrent.futures
 
     async def _run() -> list[str]:
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.infra.db import DatabaseManager
 
-        config = DatabaseConfig(path=db_path)
+        config = DatabaseConfig(path=Path(db_path))
         db = DatabaseManager(config)
         async with db:
-            runner = MigrationRunner(db)
-            applied = await runner.run_pending()
-            return [m.description for m in applied]
+            conn: Any = db._conn
+            runner = MigrationRunner(conn)
+            result = runner.run()
+            return [r.description for r in result.applied]
 
     try:
         loop = asyncio.get_running_loop()
@@ -41,8 +46,6 @@ def run_auto_migrations(db_path: str = ":memory:") -> list[str]:
         loop = None
 
     if loop and loop.is_running():
-        import concurrent.futures
-
         with concurrent.futures.ThreadPoolExecutor() as pool:
             return pool.submit(asyncio.run, _run()).result()
     else:

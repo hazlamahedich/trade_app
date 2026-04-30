@@ -6,8 +6,10 @@ and checksum integrity.
 
 from __future__ import annotations
 
+from typing import Any
 
-def check_schema_version(db_path: str = ":memory:", required_version: int | None = None) -> dict:
+
+def check_schema_version(db_path: str = ":memory:", required_version: int | None = None) -> dict[str, Any]:
     """Check current schema version against required version.
 
     Parameters
@@ -30,7 +32,7 @@ def check_schema_version(db_path: str = ":memory:", required_version: int | None
             "SELECT version FROM schema_version ORDER BY applied_at DESC LIMIT 1"
         ).fetchall()
         current = rows[0][0] if rows else 0
-    except duckdb.CatalogError:
+    except Exception:
         current = 0
     finally:
         con.close()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -38,7 +39,7 @@ def compute_profit_factor(gross_wins: float, gross_losses: float) -> float:
     return gross_wins / gross_losses
 
 
-def _insufficient_data_diagnosis(trade_count: int) -> dict:
+def _insufficient_data_diagnosis(trade_count: int) -> dict[str, Any]:
     return {
         "heading": "Insufficient data",
         "comparison_text": (
@@ -59,7 +60,7 @@ def _underperforming_diagnosis(
     strategy_sharpe: float,
     baseline_sharpe: float,
     max_drawdown: float,
-) -> dict:
+) -> dict[str, Any]:
     delta_pct = (strategy_return - baseline_return) * 100
     return {
         "heading": "Why this underperformed",
@@ -86,7 +87,7 @@ def _underperforming_diagnosis(
 def _suspicious_diagnosis(
     sharpe: float,
     profit_factor: float,
-) -> dict:
+) -> dict[str, Any]:
     pf_display = profit_factor if profit_factor != float("inf") else 999.0
     return {
         "heading": "These results look unusually good",
@@ -102,7 +103,7 @@ def _suspicious_diagnosis(
     }
 
 
-def _mixed_diagnosis(sharpe: float, max_drawdown: float) -> dict:
+def _mixed_diagnosis(sharpe: float, max_drawdown: float) -> dict[str, Any]:
     return {
         "heading": "Results show some risk",
         "comparison_text": (
@@ -130,7 +131,7 @@ def classify_emotional_state(
     trade_count: int = 0,
     baseline_sharpe: float | None = None,
     thresholds: ClassificationThresholds = DEFAULT_THRESHOLDS,
-) -> tuple[EmotionalState, dict]:
+) -> tuple[EmotionalState, dict[str, Any]]:
     try:
         if trade_count < thresholds.min_trade_count:
             return (

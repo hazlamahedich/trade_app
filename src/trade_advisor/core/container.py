@@ -55,7 +55,7 @@ def bootstrap(config: AppConfig | None = None) -> AppContainer:
     AppContainer
         Frozen dataclass with all resolved dependencies.
     """
-    cfg = config or AppConfig()  # type: ignore[call-arg]
+    cfg = config or AppConfig()
     data_provider = YahooProvider(config=cfg.data)
     db = DatabaseManager(config=cfg.database)
     registry: dict[str, type] = {

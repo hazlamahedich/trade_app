@@ -77,6 +77,9 @@
         .btn-primary:hover { opacity: 0.9; }
         .spinner { display: inline-block; width: 1.5rem; height: 1.5rem; border: 2px solid var(--border-color); border-top-color: var(--informational); border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes sparkline-draw {
+            to { stroke-dashoffset: 0; }
+        }
         @keyframes suspicion-pulse {
             0%, 100% { opacity: 0; }
             50% { opacity: 0.15; }
@@ -212,6 +215,7 @@
             .result-card--underperforming .flower-icon { animation: none; opacity: 0.6; }
             .mourning-beat-diagnosis { animation-delay: var(--mourning-beat-delay-reduced); }
             .suspicion-pulse { animation: none; opacity: 0.1; }
+            .sparkline polyline { animation: none !important; stroke-dashoffset: 0 !important; }
         }
         .error-state { background: rgba(239,68,68,0.1); border: 1px solid var(--degraded); border-radius: var(--radius); padding: 1rem; color: var(--degraded); }
         #error-container { margin-bottom: 1rem; }

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 MOURNING_BEAT_MS: int = 800
 MOURNING_BEAT_REDUCED_MS: int = 200
+SPARKLINE_DRAW_DURATION_MS: int = 600
 
 EMOTIONAL_COLORS: dict[str, dict[str, str]] = {
     "pressed_flower": {
@@ -75,3 +76,37 @@ def emotional_state(
         return "ambiguous"
 
     return "neutral"
+
+
+def render_sparkline(
+    values: list[float],
+    width: int = 120,
+    height: int = 32,
+    stroke_color: str = "var(--healthy)",
+    duration_ms: int | None = None,
+) -> str:
+    if duration_ms is None:
+        duration_ms = SPARKLINE_DRAW_DURATION_MS
+    if len(values) < 2:
+        return ""
+    mn = min(values)
+    mx = max(values)
+    rng = mx - mn if mx != mn else 1.0
+    points: list[str] = []
+    for i, v in enumerate(values):
+        x = (i / (len(values) - 1)) * width
+        y = height - ((v - mn) / rng) * (height - 4) - 2
+        points.append(f"{x:.1f},{y:.1f}")
+    polyline = " ".join(points)
+    total_len = width * 2 + height * 2
+    return (
+        f'<svg class="sparkline" width="{width}" height="{height}" '
+        f'viewBox="0 0 {width} {height}" '
+        f'aria-label="sparkline: {len(values)} data points" role="img">'
+        f'<polyline fill="none" stroke="{stroke_color}" '
+        f'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" '
+        f'points="{polyline}" '
+        f'style="stroke-dasharray:{total_len};stroke-dashoffset:{total_len};'
+        f'animation:sparkline-draw {duration_ms}ms ease-out forwards;"/>'
+        f"</svg>"
+    )

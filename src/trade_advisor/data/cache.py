@@ -45,7 +45,11 @@ def save_cache(df: pd.DataFrame, symbol: str, interval: str) -> Path:
     return p
 
 
-def _range_covered(cached: pd.DataFrame, start, end) -> bool:
+def _range_covered(
+    cached: pd.DataFrame,
+    start: str | datetime | None,
+    end: str | datetime | None,
+) -> bool:
     first_ts = cached["timestamp"].min()
     last_ts = cached["timestamp"].max()
     if start is not None and pd.to_datetime(start, utc=True) < first_ts:
@@ -102,7 +106,11 @@ def get_ohlcv(
     return _slice(combined, start, end)
 
 
-def _slice(df: pd.DataFrame, start, end) -> pd.DataFrame:
+def _slice(
+    df: pd.DataFrame,
+    start: str | datetime | None,
+    end: str | datetime | None,
+) -> pd.DataFrame:
     out = df
     if start is not None:
         start_ts = pd.to_datetime(start, utc=True)
