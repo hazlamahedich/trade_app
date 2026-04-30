@@ -28,6 +28,7 @@ from typer.testing import CliRunner
 from trade_advisor.core.config import (
     AppConfig,
     BacktestConfig,
+    CostModel,
     DatabaseConfig,
     DataConfig,
     DeterminismConfig,
@@ -371,8 +372,17 @@ class TestConfigModelStructure:
 
     def test_backtest_config_preserves_cost_model(self):
         b = BacktestConfig()
-        assert b.cost.slippage_pct == 0.0005
+        assert b.cost.slippage_pct == 0.0
         assert b.cost.commission_pct == 0.0
+        assert b.cost.commission_fixed == 0.0
+        assert b.cost.slippage_atr_fraction == 0.0
+        b2 = BacktestConfig(cost=CostModel(slippage_pct=0.0005, commission_pct=0.001))
+        assert b2.cost.slippage_pct == 0.0005
+        assert b2.cost.commission_pct == 0.001
+        dumped = b2.model_dump()
+        assert dumped["cost"]["slippage_pct"] == 0.0005
+        restored = BacktestConfig(**dumped)
+        assert restored.cost.slippage_pct == 0.0005
 
 
 class TestReviewPatches:
