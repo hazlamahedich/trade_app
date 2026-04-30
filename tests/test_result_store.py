@@ -69,6 +69,8 @@ def _make_stored(run_id: str = "abc123", created_at: datetime | None = None) -> 
     )
 
 
+@pytest.mark.test_id("2.9-UNIT-001")
+@pytest.mark.p1
 @pytest.mark.asyncio
 async def test_store_and_retrieve():
     store = InMemoryResultStore()
@@ -80,6 +82,8 @@ async def test_store_and_retrieve():
     assert retrieved.engine_mode == "vectorized"
 
 
+@pytest.mark.test_id("2.9-UNIT-002")
+@pytest.mark.p1
 @pytest.mark.asyncio
 async def test_retrieve_missing_returns_none():
     store = InMemoryResultStore()
@@ -87,6 +91,8 @@ async def test_retrieve_missing_returns_none():
     assert retrieved is None
 
 
+@pytest.mark.test_id("2.9-UNIT-003")
+@pytest.mark.p1
 @pytest.mark.asyncio
 async def test_eviction_at_max_entries():
     store = InMemoryResultStore()
@@ -105,6 +111,8 @@ async def test_eviction_at_max_entries():
     assert newest is not None, "Newest entry should remain"
 
 
+@pytest.mark.test_id("2.9-UNIT-004")
+@pytest.mark.p1
 @pytest.mark.asyncio
 async def test_concurrent_access():
     store = InMemoryResultStore()

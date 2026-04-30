@@ -50,6 +50,8 @@ from trade_advisor.core.secrets import (
 class TestConfigLoadingFromEnvFile:
     """AC #1: AppConfig loads from .env via pydantic-settings."""
 
+    @pytest.mark.test_id("1.3-UNIT-001")
+    @pytest.mark.p1
     def test_loads_from_env_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         env_file = tmp_path / ".env"
         env_file.write_text(
@@ -63,12 +65,16 @@ class TestConfigLoadingFromEnvFile:
         assert cfg.determinism.random_seed == 99
         assert cfg.logging.level == "DEBUG"
 
+    @pytest.mark.test_id("1.3-UNIT-002")
+    @pytest.mark.p1
     def test_default_values_when_no_env(self):
         cfg = AppConfig(_env_file=None)
         assert cfg.determinism.random_seed == 42
         assert cfg.backtest.initial_cash == Decimal("100000")
         assert cfg.logging.level == "INFO"
 
+    @pytest.mark.test_id("1.3-UNIT-003")
+    @pytest.mark.p1
     def test_env_var_takes_precedence_over_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
@@ -82,6 +88,8 @@ class TestConfigLoadingFromEnvFile:
 class TestMissingRequiredFields:
     """AC #2: Missing required fields raise with exact variable name."""
 
+    @pytest.mark.test_id("1.3-UNIT-004")
+    @pytest.mark.p1
     def test_missing_required_field_raises_with_name(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delenv("RISK__MAX_POSITION_SIZE", raising=False)
         with pytest.raises(ValidationError) as exc_info:
@@ -95,6 +103,8 @@ class TestMissingRequiredFields:
         assert ".env" in formatted
         assert "env var" in formatted
 
+    @pytest.mark.test_id("1.3-UNIT-005")
+    @pytest.mark.p2
     def test_format_config_error_missing_field(self):
         try:
             RiskConfig(max_position_size=None)
@@ -110,6 +120,8 @@ class TestMissingRequiredFields:
 class TestFrozenModel:
     """AC #1: AppConfig is frozen."""
 
+    @pytest.mark.test_id("1.3-UNIT-006")
+    @pytest.mark.p1
     def test_frozen_model_raises_on_mutation(self):
         cfg = AppConfig(_env_file=None)
         with pytest.raises(ValidationError):
@@ -119,6 +131,8 @@ class TestFrozenModel:
 class TestExtraFieldsRejected:
     """AC #1: Extra fields are rejected."""
 
+    @pytest.mark.test_id("1.3-UNIT-007")
+    @pytest.mark.p2
     def test_extra_fields_rejected(self):
         with pytest.raises(ValidationError) as exc_info:
             AppConfig(_env_file=None, unknown_field="value")
@@ -128,22 +142,32 @@ class TestExtraFieldsRejected:
 class TestDomainValidation:
     """AC #3: Domain-aware validation rejects invalid values."""
 
+    @pytest.mark.test_id("1.3-UNIT-008")
+    @pytest.mark.p1
     def test_invalid_seed_rejected(self):
         with pytest.raises(ValidationError):
             DeterminismConfig(random_seed=-1)
 
+    @pytest.mark.test_id("1.3-UNIT-009")
+    @pytest.mark.p1
     def test_invalid_logging_level_rejected(self):
         with pytest.raises(ValidationError):
             LoggingConfig(level="INVALID")
 
+    @pytest.mark.test_id("1.3-UNIT-010")
+    @pytest.mark.p1
     def test_valid_risk_config(self):
         r = RiskConfig(max_position_size=Decimal("50000"))
         assert r.max_portfolio_drawdown_pct == Decimal("20.0")
 
+    @pytest.mark.test_id("1.3-UNIT-011")
+    @pytest.mark.p2
     def test_invalid_drawdown_pct_rejected(self):
         with pytest.raises(ValidationError):
             RiskConfig(max_position_size=Decimal("1000"), max_portfolio_drawdown_pct=Decimal("150"))
 
+    @pytest.mark.test_id("1.3-UNIT-012")
+    @pytest.mark.p1
     def test_execution_config_defaults(self):
         e = ExecutionConfig()
         assert e.slippage_model == "percentage"
@@ -153,15 +177,21 @@ class TestDomainValidation:
 class TestInitialCashDecimal:
     """D4: initial_cash is Decimal (not float)."""
 
+    @pytest.mark.test_id("1.3-UNIT-013")
+    @pytest.mark.p1
     def test_initial_cash_is_decimal(self):
         b = BacktestConfig()
         assert isinstance(b.initial_cash, Decimal)
         assert b.initial_cash == Decimal("100000")
 
+    @pytest.mark.test_id("1.3-UNIT-014")
+    @pytest.mark.p1
     def test_initial_cash_accepts_decimal_input(self):
         b = BacktestConfig(initial_cash=Decimal("50000"))
         assert b.initial_cash == Decimal("50000")
 
+    @pytest.mark.test_id("1.3-UNIT-015")
+    @pytest.mark.p2
     def test_initial_cash_coerces_float(self):
         b = BacktestConfig(initial_cash=50000.0)
         assert isinstance(b.initial_cash, Decimal)
@@ -171,6 +201,8 @@ class TestKeyringIntegration:
     """AC #6-9: Keyring integration with fallback."""
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-016")
+    @pytest.mark.p1
     def test_keyring_read_fallback_to_env(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = None
@@ -181,6 +213,8 @@ class TestKeyringIntegration:
         assert secrets._secrets_source["yahoo_api_key"] == "env_fallback"
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-017")
+    @pytest.mark.p1
     def test_keyring_hit_skips_env(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = "keyring_val"
@@ -191,6 +225,8 @@ class TestKeyringIntegration:
         assert secrets._secrets_source["yahoo_api_key"] == "keyring"
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-018")
+    @pytest.mark.p1
     def test_keyring_unavailable_graceful_degradation(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.side_effect = RuntimeError("Keychain locked")
@@ -200,6 +236,8 @@ class TestKeyringIntegration:
         assert secrets.get_secret_value("yahoo_api_key") == "fallback_key"
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-019")
+    @pytest.mark.p1
     def test_all_keys_none_when_no_source(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = None
@@ -211,6 +249,8 @@ class TestKeyringIntegration:
         assert secrets.polygon_api_key is None
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-020")
+    @pytest.mark.p1
     def test_set_key_stores_in_keyring(self, mock_init):
         mock_kr = MagicMock()
         mock_init.return_value = mock_kr
@@ -218,6 +258,8 @@ class TestKeyringIntegration:
         set_key("YAHOO_API_KEY", "my_secret")
         mock_kr.set_password.assert_called_once_with(KEYRING_SERVICE, "YAHOO_API_KEY", "my_secret")
 
+    @pytest.mark.test_id("1.3-UNIT-021")
+    @pytest.mark.p1
     def test_set_key_rejects_unknown_key(self):
         with pytest.raises(ValueError, match="Unknown key"):
             set_key("INVALID_KEY", "val")
@@ -226,11 +268,15 @@ class TestKeyringIntegration:
 class TestSecretMasking:
     """AC #11: SecretStr masks values in repr/dump."""
 
+    @pytest.mark.test_id("1.3-UNIT-022")
+    @pytest.mark.p2
     def test_secrets_masked_in_repr(self):
         s = SecretsConfig(yahoo_api_key="super_secret_value")
         r = repr(s)
         assert "super_secret_value" not in r
 
+    @pytest.mark.test_id("1.3-UNIT-023")
+    @pytest.mark.p2
     def test_secrets_masked_in_model_dump(self):
         s = SecretsConfig(
             yahoo_api_key="super_secret",
@@ -244,6 +290,8 @@ class TestSecretMasking:
 class TestEnvExampleParity:
     """AC #12: .env.example field parity with AppConfig."""
 
+    @pytest.mark.test_id("1.3-UNIT-024")
+    @pytest.mark.p2
     def test_env_example_field_parity(self):
         repo_root = Path(__file__).resolve().parents[1]
         env_example = repo_root / ".env.example"
@@ -266,6 +314,8 @@ class TestEnvExampleParity:
 class TestGitignore:
     """AC #13: .env is gitignored."""
 
+    @pytest.mark.test_id("1.3-UNIT-025")
+    @pytest.mark.p2
     def test_gitignore_contains_env(self):
         gitignore = Path(__file__).resolve().parents[1] / ".gitignore"
         content = gitignore.read_text()
@@ -277,6 +327,8 @@ class TestGitignore:
 class TestNoImportTimeIO:
     """AC #14: Importing core.config performs no I/O."""
 
+    @pytest.mark.test_id("1.3-UNIT-026")
+    @pytest.mark.p1
     def test_import_config_no_filesystem_access(self):
         original_mkdir = Path.mkdir
         calls: list[Path] = []
@@ -298,6 +350,8 @@ class TestNoImportTimeIO:
 class TestLoadConfigFunction:
     """AC #14: load_config() creates dirs and returns FullConfig."""
 
+    @pytest.mark.test_id("1.3-UNIT-027")
+    @pytest.mark.p1
     def test_load_config_returns_full_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.chdir(tmp_path)
         full = load_config()
@@ -305,12 +359,16 @@ class TestLoadConfigFunction:
         assert isinstance(full.app, AppConfig)
         assert isinstance(full.secrets, SecretsConfig)
 
+    @pytest.mark.test_id("1.3-UNIT-028")
+    @pytest.mark.p1
     def test_load_config_creates_dirs(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         cache_dir = tmp_path / "data_cache"
         monkeypatch.setenv("DATA__CACHE_DIR", str(cache_dir))
         load_config()
         assert cache_dir.exists()
 
+    @pytest.mark.test_id("1.3-UNIT-029")
+    @pytest.mark.p2
     def test_load_config_restores_env_on_override(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ):
@@ -320,6 +378,8 @@ class TestLoadConfigFunction:
 
         assert os.environ.get("DETERMINISM__RANDOM_SEED") is None
 
+    @pytest.mark.test_id("1.3-UNIT-030")
+    @pytest.mark.p1
     def test_load_config_rejects_non_app_env_var(self):
         with pytest.raises(ValueError, match="Refusing to override"):
             load_config(override_env={"PATH": "/evil"})
@@ -328,6 +388,8 @@ class TestLoadConfigFunction:
 class TestCLICommands:
     """AC #15-16: CLI config commands."""
 
+    @pytest.mark.test_id("1.3-UNIT-031")
+    @pytest.mark.p1
     def test_config_validate_command_success(self, monkeypatch: pytest.MonkeyPatch):
         from trade_advisor.cli import app
 
@@ -336,6 +398,8 @@ class TestCLICommands:
         assert result.exit_code == 0
         assert "passed" in result.output.lower() or "loaded" in result.output.lower()
 
+    @pytest.mark.test_id("1.3-UNIT-032")
+    @pytest.mark.p1
     def test_config_set_key_rejects_unknown(self):
         from trade_advisor.cli import app
 
@@ -343,6 +407,8 @@ class TestCLICommands:
         result = runner.invoke(app, ["config", "set-key", "INVALID_KEY"], input="val\n")
         assert result.exit_code != 0
 
+    @pytest.mark.test_id("1.3-UNIT-033")
+    @pytest.mark.p2
     def test_config_set_key_rejects_empty(self):
         from trade_advisor.cli import app
 
@@ -355,6 +421,8 @@ class TestCLICommands:
 class TestConfigModelStructure:
     """AC #10: Nested sub-models with correct types."""
 
+    @pytest.mark.test_id("1.3-UNIT-034")
+    @pytest.mark.p1
     def test_appconfig_has_all_submodels(self):
         cfg = AppConfig(_env_file=None)
         assert isinstance(cfg.data, DataConfig)
@@ -365,11 +433,15 @@ class TestConfigModelStructure:
         assert isinstance(cfg.logging, LoggingConfig)
         assert cfg.risk is None
 
+    @pytest.mark.test_id("1.3-UNIT-035")
+    @pytest.mark.p1
     def test_risk_config_with_required_field(self):
         r = RiskConfig(max_position_size=Decimal("100000"))
         assert r.daily_loss_limit == Decimal("5000")
         assert r.max_sector_exposure == Decimal("30.0")
 
+    @pytest.mark.test_id("1.3-UNIT-036")
+    @pytest.mark.p1
     def test_backtest_config_preserves_cost_model(self):
         b = BacktestConfig()
         assert b.cost.slippage_pct == 0.0
@@ -389,6 +461,8 @@ class TestReviewPatches:
     """Patches from code review (P1-P10, D2-D4)."""
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-037")
+    @pytest.mark.p1
     def test_p1_empty_env_vars_dict_does_not_leak_os_environ(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = None
@@ -403,6 +477,8 @@ class TestReviewPatches:
             os.environ.pop("YAHOO_API_KEY", None)
 
     @patch("trade_advisor.core.secrets._init_keyring")
+    @pytest.mark.test_id("1.3-UNIT-038")
+    @pytest.mark.p1
     def test_p4_empty_string_keyring_ignored(self, mock_init):
         mock_kr = MagicMock()
         mock_kr.get_password.return_value = ""
@@ -410,19 +486,27 @@ class TestReviewPatches:
         secrets = load_secrets(env_vars={"YAHOO_API_KEY": "real_value"})
         assert secrets.get_secret_value("yahoo_api_key") == "real_value"
 
+    @pytest.mark.test_id("1.3-UNIT-039")
+    @pytest.mark.p1
     def test_p4_set_key_rejects_empty_string(self):
         with pytest.raises(ValueError, match="empty"):
             set_key("YAHOO_API_KEY", "")
 
+    @pytest.mark.test_id("1.3-UNIT-040")
+    @pytest.mark.p2
     def test_p4_set_key_rejects_whitespace_only(self):
         with pytest.raises(ValueError, match="empty"):
             set_key("YAHOO_API_KEY", "   ")
 
+    @pytest.mark.test_id("1.3-UNIT-041")
+    @pytest.mark.p1
     def test_p8_get_secret_value_rejects_unknown_field(self):
         s = SecretsConfig(yahoo_api_key="test")
         with pytest.raises(ValueError, match="Unknown secret field"):
             s.get_secret_value("nonexistent_key")
 
+    @pytest.mark.test_id("1.3-UNIT-042")
+    @pytest.mark.p1
     def test_p3_secrets_source_defensive_copy(self):
         shared = {"yahoo_api_key": "keyring"}
         s = SecretsConfig(yahoo_api_key="x", _secrets_source=shared)

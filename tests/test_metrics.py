@@ -9,12 +9,16 @@ import pytest
 from trade_advisor.evaluation.metrics import compute_metrics, drawdown_series, max_drawdown
 
 
+@pytest.mark.test_id("1.5-UNIT-001")
+@pytest.mark.p1
 def test_empty_returns_gives_zeros():
     m = compute_metrics(pd.Series([], dtype="float64"))
     assert m.total_return == 0
     assert m.sharpe == 0
 
 
+@pytest.mark.test_id("1.5-UNIT-002")
+@pytest.mark.p1
 def test_positive_constant_returns():
     """A tiny positive return every bar -> positive metrics, zero drawdown."""
     r = pd.Series([0.001] * 252)
@@ -26,6 +30,8 @@ def test_positive_constant_returns():
     assert m.sharpe == 0
 
 
+@pytest.mark.test_id("1.5-UNIT-003")
+@pytest.mark.p1
 def test_known_sharpe_roughly_matches():
     """With known mean/std, annualized Sharpe should match the formula."""
     rng = np.random.default_rng(7)
@@ -36,12 +42,16 @@ def test_known_sharpe_roughly_matches():
     assert abs(m.sharpe - expected) < 0.2  # loose — finite-sample noise
 
 
+@pytest.mark.test_id("1.5-UNIT-004")
+@pytest.mark.p1
 def test_max_drawdown_simple():
     equity = pd.Series([100, 110, 90, 95, 120])
     # Drawdown trough at bar 2: (90 - 110) / 110 = -0.1818...
     assert max_drawdown(equity) == pytest.approx(-0.1818, abs=1e-3)
 
 
+@pytest.mark.test_id("1.5-UNIT-005")
+@pytest.mark.p1
 def test_drawdown_series_always_non_positive():
     rng = np.random.default_rng(1)
     equity = pd.Series(100 * np.cumprod(1 + rng.normal(0, 0.01, 500)))

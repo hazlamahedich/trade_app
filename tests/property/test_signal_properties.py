@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -20,6 +21,8 @@ _name_st = st.text(min_size=1, max_size=30, alphabet=st.characters(whitelist_cat
 
 @settings(max_examples=200)
 @given(signal=_signal_st, confidence=_confidence_st, name=_name_st)
+@pytest.mark.test_id("1.1-PROP-001")
+@pytest.mark.p0
 def test_signal_model_round_trip(signal: float, confidence: float | None, name: str):
     ts = datetime(2026, 1, 1, tzinfo=UTC)
     m = SignalModel(
@@ -31,6 +34,8 @@ def test_signal_model_round_trip(signal: float, confidence: float | None, name: 
 
 @settings(max_examples=100)
 @given(signals=st.lists(_signal_st, min_size=1, max_size=50), name=_name_st)
+@pytest.mark.test_id("1.1-PROP-002")
+@pytest.mark.p0
 def test_signal_batch_consistency(signals: list[float], name: str):
     ts = datetime(2026, 1, 1, tzinfo=UTC)
     models = [
@@ -48,6 +53,8 @@ def test_signal_batch_consistency(signals: list[float], name: str):
         st.floats(min_value=1.01, allow_nan=False, allow_infinity=False),
     )
 )
+@pytest.mark.test_id("1.1-PROP-003")
+@pytest.mark.p0
 def test_signal_rejects_out_of_range(out_of_range: float):
     ts = datetime(2026, 1, 1, tzinfo=UTC)
     try:

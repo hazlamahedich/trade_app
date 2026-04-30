@@ -21,23 +21,31 @@ def _isolate_cache(tmp_path, monkeypatch):
     monkeypatch.setattr(cache_mod, "OHLCV_ROOT", tmp_path / "ohlcv")
 
 
+@pytest.mark.test_id("1.4-UNIT-001")
+@pytest.mark.p1
 def test_validate_ok(synthetic_ohlcv):
     warnings = validate_ohlcv(synthetic_ohlcv, "TEST")
     assert warnings == []
 
 
+@pytest.mark.test_id("1.4-UNIT-002")
+@pytest.mark.p1
 def test_validate_detects_duplicates(synthetic_ohlcv):
     df = pd.concat([synthetic_ohlcv, synthetic_ohlcv.iloc[[0]]], ignore_index=True)
     with pytest.raises(DataValidationError, match="duplicate"):
         validate_ohlcv(df, "TEST")
 
 
+@pytest.mark.test_id("1.4-UNIT-003")
+@pytest.mark.p1
 def test_validate_detects_unsorted(synthetic_ohlcv):
     df = synthetic_ohlcv.iloc[::-1].reset_index(drop=True)
     with pytest.raises(DataValidationError, match="not sorted"):
         validate_ohlcv(df, "TEST")
 
 
+@pytest.mark.test_id("1.4-UNIT-004")
+@pytest.mark.p1
 def test_save_and_load_roundtrip(synthetic_ohlcv):
     save_cache(synthetic_ohlcv, "TEST", "1d")
     loaded = load_cached("TEST", "1d")
@@ -46,6 +54,8 @@ def test_save_and_load_roundtrip(synthetic_ohlcv):
     assert list(loaded.columns) == list(synthetic_ohlcv.columns)
 
 
+@pytest.mark.test_id("1.4-UNIT-005")
+@pytest.mark.p1
 def test_get_ohlcv_uses_fetcher_on_miss(fake_fetcher):
     df = get_ohlcv("TEST", start="2020-01-01", interval="1d", fetcher=fake_fetcher)
     assert not df.empty
@@ -58,6 +68,8 @@ def test_get_ohlcv_uses_fetcher_on_miss(fake_fetcher):
     assert len(df2) == len(df)
 
 
+@pytest.mark.test_id("1.4-UNIT-006")
+@pytest.mark.p1
 def test_get_ohlcv_slices_by_date(fake_fetcher):
     full = get_ohlcv("TEST", interval="1d", fetcher=fake_fetcher)
     sliced = get_ohlcv("TEST", start="2021-01-01", interval="1d", fetcher=fake_fetcher)

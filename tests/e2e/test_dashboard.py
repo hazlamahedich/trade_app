@@ -16,13 +16,19 @@ pytestmark = pytest.mark.e2e
 class TestDashboardLanding:
     """Given the dashboard is loaded, When no backtest has run, Then show landing state."""
 
+    @pytest.mark.test_id("2.9-E2E-001")
+    @pytest.mark.p2
     def test_title_visible(self, app_page):
         dashboard = DashboardPage(app_page)
         assert dashboard.title.inner_text() == "Quant Trade Advisor"
 
+    @pytest.mark.test_id("2.9-E2E-002")
+    @pytest.mark.p2
     def test_landing_info_message(self, app_page):
         app_page.locator("text=Configure a run in the sidebar").wait_for(timeout=10_000)
 
+    @pytest.mark.test_id("2.9-E2E-003")
+    @pytest.mark.p2
     def test_run_button_exists(self, app_page):
         dashboard = DashboardPage(app_page)
         assert dashboard.run_button.is_visible()
@@ -31,12 +37,16 @@ class TestDashboardLanding:
 class TestDashboardBacktest:
     """Given valid params, When Run backtest is clicked, Then metrics appear."""
 
+    @pytest.mark.test_id("2.9-E2E-004")
+    @pytest.mark.p2
     def test_run_shows_metrics(self, app_page):
         dashboard = DashboardPage(app_page)
         dashboard.set_symbol("SPY")
         dashboard.run_backtest()
         assert dashboard.metric_values.count() >= 5
 
+    @pytest.mark.test_id("2.9-E2E-005")
+    @pytest.mark.p2
     def test_shows_error_when_fast_ge_slow(self, app_page):
         dashboard = DashboardPage(app_page)
         dashboard.set_fast_sma(50)

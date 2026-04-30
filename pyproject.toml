@@ -84,4 +84,9 @@ markers = [
     "e2e: end-to-end tests requiring full system",
     "slow: tests exceeding 5 seconds",
     "convergence: vectorized vs event-driven engine convergence tests",
+    "p0: critical path — must pass before any merge",
+    "p1: high priority — should pass before release",
+    "p2: medium priority — desirable for confidence",
+    "p3: low priority — nice-to-have / edge-case coverage",
+    "test_id(*): traceability ID in {EPIC}.{STORY}-{LEVEL}-{SEQ} format",
 ]

@@ -7,6 +7,7 @@ require a network connection.
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from trade_advisor.backtest.engine import run_backtest
 from trade_advisor.config import BacktestConfig, CostModel
@@ -14,6 +15,8 @@ from trade_advisor.evaluation.metrics import compute_metrics
 from trade_advisor.strategies.sma_cross import SmaCross
 
 
+@pytest.mark.test_id("1.2-UNIT-001")
+@pytest.mark.p1
 def test_full_pipeline_runs(synthetic_ohlcv):
     strat = SmaCross(fast=10, slow=30)
     sig = strat.generate_signals(synthetic_ohlcv)
@@ -28,6 +31,8 @@ def test_full_pipeline_runs(synthetic_ohlcv):
     assert metrics.n_bars == len(synthetic_ohlcv)
 
 
+@pytest.mark.test_id("1.2-UNIT-002")
+@pytest.mark.p1
 def test_flat_signal_gives_flat_equity(synthetic_ohlcv):
     """Zero signal should produce equity == initial cash all the way through."""
     flat = pd.Series(0, index=range(len(synthetic_ohlcv)), dtype="int8", name="signal")
@@ -38,6 +43,8 @@ def test_flat_signal_gives_flat_equity(synthetic_ohlcv):
     assert result.trades.empty
 
 
+@pytest.mark.test_id("1.2-UNIT-003")
+@pytest.mark.p1
 def test_costs_reduce_return(synthetic_ohlcv):
     strat = SmaCross(fast=5, slow=20)
     sig = strat.generate_signals(synthetic_ohlcv)

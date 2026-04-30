@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC = REPO_ROOT / "src" / "trade_advisor"
 
@@ -33,16 +35,22 @@ def _scan_imports(pattern: str, root: Path) -> list[str]:
 
 
 class TestImportContracts:
+    @pytest.mark.test_id("1.0-UNIT-001")
+    @pytest.mark.p1
     def test_backtest_imports_from_interface_not_base(self):
         engine = SRC / "backtest" / "engine.py"
         content = engine.read_text()
         assert "from trade_advisor.strategies.base" not in content
 
+    @pytest.mark.test_id("1.0-UNIT-002")
+    @pytest.mark.p1
     def test_container_imports_protocols(self):
         container = SRC / "core" / "container.py"
         content = container.read_text()
         assert "from trade_advisor.data.providers.base import DataProvider" in content
 
+    @pytest.mark.test_id("1.0-UNIT-003")
+    @pytest.mark.p1
     def test_no_concrete_strategy_imports_outside_module(self):
         matches = _scan_imports(r"from trade_advisor\.strategies\.base", SRC)
         violations = [m for m in matches if "strategies/" not in m.split(":")[0]]
@@ -50,6 +58,8 @@ class TestImportContracts:
             "Modules outside strategies/ import from strategies.base:\n" + "\n".join(violations)
         )
 
+    @pytest.mark.test_id("1.0-UNIT-004")
+    @pytest.mark.p1
     def test_no_concrete_strategy_class_imports_outside_container(self):
         matches = _scan_imports(r"from trade_advisor\.strategies\.sma_cross import", SRC)
         violations = [

@@ -5,6 +5,8 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from tests.helpers import _synthetic_ohlcv
 
 
@@ -94,3 +96,57 @@ def zero_cost_config():
         initial_cash="100000",
         cost=CostModel(commission_pct=0.0, slippage_pct=0.0),
     )
+
+
+def _make_ohlcv_for_backtest(n: int = 500, symbol: str = "TEST", start: str = "2020-01-01"):
+    from tests.support.factories.ohlcv_factory import make_ohlcv
+
+    return make_ohlcv(n=n, symbol=symbol, start=start, seed=42)
+
+
+@pytest_asyncio.fixture
+async def async_client_with_data():
+    from trade_advisor.core.config import DatabaseConfig
+    from trade_advisor.data.storage import DataRepository
+    from trade_advisor.infra.db import DatabaseManager
+    from trade_advisor.main import app
+
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    async with db:
+        original_db = getattr(app.state, "db", None)
+        app.state.db = db
+        try:
+            df = _make_ohlcv_for_backtest(n=500, symbol="SPY", start="2020-01-01")
+            repo = DataRepository(db)
+            await repo.store(df, provider_name="synthetic")
+
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport, base_url="http://test") as client:
+                yield client
+        finally:
+            app.state.db = original_db
+
+
+@pytest.fixture(autouse=True)
+def _reset_result_store():
+    from trade_advisor.web.services.result_store import get_result_store
+
+    get_result_store()._store.clear()
+    yield
+    get_result_store()._store.clear()
+
+
+RUN_DATA = {
+    "strategy_type": "sma",
+    "symbol": "SPY",
+    "fast": "20",
+    "slow": "50",
+    "interval": "1d",
+    "start_date": "2021-01-01",
+    "end_date": "2024-01-01",
+    "engine_mode": "vectorized",
+    "commission_pct": "0.001",
+    "slippage_pct": "0.0005",
+    "initial_cash": "100000",
+}

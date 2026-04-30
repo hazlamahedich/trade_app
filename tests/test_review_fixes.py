@@ -11,21 +11,29 @@ from trade_advisor.config import BacktestConfig, CostModel
 from trade_advisor.evaluation.metrics import compute_metrics
 
 
+@pytest.mark.test_id("1.0-UNIT-001")
+@pytest.mark.p1
 def test_commission_fixed_now_supported():
     model = CostModel(commission_fixed=1.0)
     assert model.commission_fixed == 1.0
 
 
+@pytest.mark.test_id("1.0-UNIT-002")
+@pytest.mark.p1
 def test_initial_cash_rejects_zero():
     with pytest.raises(Exception):  # noqa: B017
         BacktestConfig(initial_cash=0)
 
 
+@pytest.mark.test_id("1.0-UNIT-003")
+@pytest.mark.p1
 def test_initial_cash_rejects_negative():
     with pytest.raises(Exception):  # noqa: B017
         BacktestConfig(initial_cash=-100)
 
 
+@pytest.mark.test_id("1.0-UNIT-004")
+@pytest.mark.p1
 def test_sortino_known_values():
     r = pd.Series([0.01, -0.02, 0.03, -0.01, 0.005, -0.03, 0.02, 0.01, -0.005, 0.015])
     m = compute_metrics(r, bars_per_year=252)
@@ -35,6 +43,8 @@ def test_sortino_known_values():
     assert abs(m.sortino - expected_sortino) < 0.01
 
 
+@pytest.mark.test_id("1.0-UNIT-005")
+@pytest.mark.p1
 def test_sortino_gte_sharpe_for_same_input():
     rng = np.random.default_rng(99)
     r = pd.Series(rng.normal(0.0005, 0.015, 500))
@@ -42,18 +52,24 @@ def test_sortino_gte_sharpe_for_same_input():
     assert m.sortino >= m.sharpe - 0.5
 
 
+@pytest.mark.test_id("1.0-UNIT-006")
+@pytest.mark.p1
 def test_cagr_negative_equity_returns_minus_one():
     r = pd.Series([-1.5])
     m = compute_metrics(r, bars_per_year=252)
     assert m.cagr == -1.0
 
 
+@pytest.mark.test_id("1.0-UNIT-007")
+@pytest.mark.p1
 def test_cagr_positive_equity():
     r = pd.Series([0.01] * 252)
     m = compute_metrics(r)
     assert m.cagr > 0
 
 
+@pytest.mark.test_id("1.0-UNIT-008")
+@pytest.mark.p1
 def test_extract_trades_empty_position():
     pos = pd.Series(dtype="float64", name="position")
     price = pd.Series(dtype="float64", name="price")
@@ -64,6 +80,8 @@ def test_extract_trades_empty_position():
     assert "side" in trades.columns
 
 
+@pytest.mark.test_id("1.0-UNIT-009")
+@pytest.mark.p1
 def test_signal_validation_rejects_invalid(synthetic_ohlcv):
     bad_sig = pd.Series(2, index=range(len(synthetic_ohlcv)), dtype="int8")
     with pytest.raises(ValueError, match=r"Signal values must be in"):

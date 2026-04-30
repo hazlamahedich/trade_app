@@ -20,11 +20,15 @@ from trade_advisor.strategies.sizing import (
 class TestStory22PositionSizing:
     """Story 2.2: Built-in position sizing methods."""
 
+    @pytest.mark.test_id("2.2-ATDD-001")
+    @pytest.mark.p1
     def test_fixed_fractional_sizing(self):
         size = fixed_fractional(equity=Decimal("100000"), fraction=Decimal("0.10"))
         assert isinstance(size, Decimal)
         assert size == Decimal("10000")
 
+    @pytest.mark.test_id("2.2-ATDD-002")
+    @pytest.mark.p1
     def test_half_kelly_sizing(self):
         size = half_kelly(
             equity=Decimal("100000"),
@@ -35,6 +39,8 @@ class TestStory22PositionSizing:
         assert isinstance(size, Decimal)
         assert size > Decimal("0")
 
+    @pytest.mark.test_id("2.2-ATDD-003")
+    @pytest.mark.p1
     def test_vol_targeting_sizing(self):
         size = vol_targeting(
             equity=Decimal("100000"),
@@ -44,6 +50,8 @@ class TestStory22PositionSizing:
         assert isinstance(size, Decimal)
         assert size > Decimal("0")
 
+    @pytest.mark.test_id("2.2-ATDD-004")
+    @pytest.mark.p1
     def test_inverse_vol_sizing(self):
         size = inverse_vol(
             equity=Decimal("100000"),
@@ -52,6 +60,8 @@ class TestStory22PositionSizing:
         assert isinstance(size, Decimal)
         assert size > Decimal("0")
 
+    @pytest.mark.test_id("2.2-ATDD-005")
+    @pytest.mark.p1
     def test_sizing_params_included_in_strategy_config(self):
         from trade_advisor.strategies.sizing import FixedFractionalConfig
 
@@ -59,10 +69,14 @@ class TestStory22PositionSizing:
         size = cfg.compute(equity=Decimal("100000"))
         assert size == Decimal("10000")
 
+    @pytest.mark.test_id("2.2-ATDD-006")
+    @pytest.mark.p1
     def test_negative_fraction_raises(self):
         with pytest.raises(ValueError):
             fixed_fractional(equity=Decimal("100000"), fraction=Decimal("-0.10"))
 
+    @pytest.mark.test_id("2.2-ATDD-007")
+    @pytest.mark.p1
     def test_zero_volatility_raises(self):
         with pytest.raises(ValueError):
             vol_targeting(

@@ -10,6 +10,8 @@ from tests.helpers import assert_no_lookahead_bias
 from trade_advisor.strategies.sma_cross import SmaCross, SmaCrossConfig
 
 
+@pytest.mark.test_id("1.1-UNIT-001")
+@pytest.mark.p1
 def test_invalid_windows_rejected():
     with pytest.raises(ValueError):
         SmaCross(fast=50, slow=20)
@@ -21,21 +23,29 @@ def test_invalid_windows_rejected():
         SmaCross(fast=10, slow=-1)
 
 
+@pytest.mark.test_id("1.1-UNIT-002")
+@pytest.mark.p1
 def test_signal_values_only_allowed(synthetic_ohlcv):
     sig = SmaCross(fast=10, slow=30).generate_signals(synthetic_ohlcv)
     assert set(sig.unique()).issubset({-1, 0, 1})
 
 
+@pytest.mark.test_id("1.1-UNIT-003")
+@pytest.mark.p1
 def test_long_only_has_no_shorts(synthetic_ohlcv):
     sig = SmaCross(fast=10, slow=30, allow_short=False).generate_signals(synthetic_ohlcv)
     assert (sig < 0).sum() == 0
 
 
+@pytest.mark.test_id("1.1-UNIT-004")
+@pytest.mark.p1
 def test_short_mode_can_produce_shorts(synthetic_ohlcv):
     sig = SmaCross(fast=10, slow=30, allow_short=True).generate_signals(synthetic_ohlcv)
     assert (sig == -1).sum() > 0
 
 
+@pytest.mark.test_id("1.1-UNIT-005")
+@pytest.mark.p0
 def test_no_lookahead_signals_are_shifted(synthetic_ohlcv):
     """The signal at bar t must depend only on bars <= t-1."""
     strat = SmaCross(fast=10, slow=30)
@@ -51,6 +61,8 @@ def test_no_lookahead_signals_are_shifted(synthetic_ohlcv):
     )
 
 
+@pytest.mark.test_id("1.1-UNIT-006")
+@pytest.mark.p1
 def test_warmup_bars_are_flat(synthetic_ohlcv):
     """Before the slow window has filled, there is no signal."""
     slow = 50
@@ -58,14 +70,20 @@ def test_warmup_bars_are_flat(synthetic_ohlcv):
     assert (sig.iloc[:slow] == 0).all()
 
 
+@pytest.mark.test_id("1.1-UNIT-007")
+@pytest.mark.p1
 def test_information_latency_is_one():
     assert SmaCross(fast=10, slow=30).information_latency == 1
 
 
+@pytest.mark.test_id("1.1-UNIT-008")
+@pytest.mark.p1
 def test_warmup_period_returns_slow():
     assert SmaCross(fast=10, slow=30).warmup_period == 30
 
 
+@pytest.mark.test_id("1.1-UNIT-009")
+@pytest.mark.p1
 def test_config_json_roundtrip(synthetic_ohlcv):
     original = SmaCross(fast=14, slow=30, allow_short=True)
     cfg = original.to_config()
@@ -78,6 +96,8 @@ def test_config_json_roundtrip(synthetic_ohlcv):
     )
 
 
+@pytest.mark.test_id("1.1-UNIT-010")
+@pytest.mark.p1
 def test_config_deterministic_signals(synthetic_ohlcv):
     strat = SmaCross(fast=10, slow=30)
     s1 = strat.generate_signals(synthetic_ohlcv)
@@ -85,6 +105,8 @@ def test_config_deterministic_signals(synthetic_ohlcv):
     pd.testing.assert_series_equal(s1, s2)
 
 
+@pytest.mark.test_id("1.1-UNIT-011")
+@pytest.mark.p1
 def test_config_captures_all_parameters():
     cfg = SmaCross(fast=14, slow=30, allow_short=True).to_config()
     dumped = cfg.model_dump()
@@ -93,6 +115,8 @@ def test_config_captures_all_parameters():
     assert dumped["allow_short"] is True
 
 
+@pytest.mark.test_id("1.1-UNIT-012")
+@pytest.mark.p1
 def test_config_round_trip_preserves_all_fields():
     original = SmaCrossConfig(fast=10, slow=30, allow_short=True)
     strategy = SmaCross.from_config(original)
@@ -100,6 +124,8 @@ def test_config_round_trip_preserves_all_fields():
     assert restored == original
 
 
+@pytest.mark.test_id("1.1-UNIT-013")
+@pytest.mark.p1
 def test_empty_dataframe_returns_empty_series():
     empty = pd.DataFrame(columns=["close"])
     sig = SmaCross(fast=5, slow=10).generate_signals(empty)
@@ -107,6 +133,8 @@ def test_empty_dataframe_returns_empty_series():
     assert sig.dtype == np.float64
 
 
+@pytest.mark.test_id("1.1-UNIT-014")
+@pytest.mark.p1
 def test_single_bar_dataframe_returns_flat():
     single = pd.DataFrame({"close": [100.0], "adj_close": [100.0]})
     sig = SmaCross(fast=5, slow=10).generate_signals(single)
@@ -114,6 +142,8 @@ def test_single_bar_dataframe_returns_flat():
     assert sig.iloc[0] == 0.0
 
 
+@pytest.mark.test_id("1.1-UNIT-015")
+@pytest.mark.p1
 def test_window_exceeds_data_length_returns_all_flat():
     short = pd.DataFrame({"close": range(5), "adj_close": range(5)})
     sig = SmaCross(fast=5, slow=10).generate_signals(short)
@@ -121,6 +151,8 @@ def test_window_exceeds_data_length_returns_all_flat():
     assert (sig == 0.0).all()
 
 
+@pytest.mark.test_id("1.1-UNIT-016")
+@pytest.mark.p1
 def test_fast_equals_slow_rejected():
     with pytest.raises(ValueError):
         SmaCross(fast=10, slow=10)
@@ -128,6 +160,8 @@ def test_fast_equals_slow_rejected():
         SmaCrossConfig(fast=10, slow=10)
 
 
+@pytest.mark.test_id("1.1-UNIT-017")
+@pytest.mark.p1
 def test_to_signal_batch_correct_count_timestamps_values():
     rng = np.random.default_rng(42)
     dates = pd.bdate_range("2020-01-01", periods=200, tz="UTC")
@@ -145,16 +179,22 @@ def test_to_signal_batch_correct_count_timestamps_values():
         assert s.timestamp.tzinfo is not None
 
 
+@pytest.mark.test_id("1.1-UNIT-018")
+@pytest.mark.p1
 def test_to_signal_batch_rejects_range_index(synthetic_ohlcv):
     strat = SmaCross(fast=10, slow=30)
     with pytest.raises(TypeError, match="DatetimeIndex"):
         strat.to_signal_batch(synthetic_ohlcv, "TEST")
 
 
+@pytest.mark.test_id("1.1-UNIT-019")
+@pytest.mark.p0
 def test_no_lookahead_adversarial():
     assert_no_lookahead_bias(SmaCross, fast=10, slow=20)
 
 
+@pytest.mark.test_id("1.1-UNIT-020")
+@pytest.mark.p1
 def test_fast_equals_one_produces_valid_signals():
     rng = np.random.default_rng(42)
     df = pd.DataFrame({"close": rng.normal(100, 5, 100), "adj_close": rng.normal(100, 5, 100)})
@@ -164,6 +204,8 @@ def test_fast_equals_one_produces_valid_signals():
     assert (sig.iloc[:5] == 0.0).all()
 
 
+@pytest.mark.test_id("1.1-UNIT-021")
+@pytest.mark.p1
 def test_nan_close_produces_flat_signals():
     n = 100
     rng = np.random.default_rng(42)

@@ -19,21 +19,29 @@ from trade_advisor.strategies.sma_cross import SmaCross
 class TestStory21SmaCrossover:
     """Story 2.1: Working SMA crossover strategy included with the platform."""
 
+    @pytest.mark.test_id("2.1-ATDD-001")
+    @pytest.mark.p1
     def test_sma_crossover_implements_strategy_protocol(self):
         strategy = SmaCross(fast=20, slow=50)
         assert isinstance(strategy, Strategy)
 
+    @pytest.mark.test_id("2.1-ATDD-002")
+    @pytest.mark.p1
     def test_sma_crossover_generates_buy_sell_signals(self, ohlcv_500):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)
         assert set(signals.unique()).issubset({-1.0, 0.0, 1.0})
         assert (signals != 0).any(), "Strategy produces no non-flat signals"
 
+    @pytest.mark.test_id("2.1-ATDD-003")
+    @pytest.mark.p1
     def test_sma_crossover_generates_timestamps(self, ohlcv_500):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)
         assert len(signals) == len(ohlcv_500)
 
+    @pytest.mark.test_id("2.1-ATDD-004")
+    @pytest.mark.p1
     def test_sma_crossover_config_serializable_to_json(self):
         strategy = SmaCross(fast=14, slow=30)
         config = strategy.to_config()
@@ -42,14 +50,20 @@ class TestStory21SmaCrossover:
         assert parsed["fast"] == 14
         assert parsed["slow"] == 30
 
+    @pytest.mark.test_id("2.1-ATDD-005")
+    @pytest.mark.p1
     def test_sma_crossover_information_latency_declared(self):
         strategy = SmaCross(fast=20, slow=50)
         assert strategy.information_latency == 1
         assert strategy.warmup_period == 50
 
+    @pytest.mark.test_id("2.1-ATDD-006")
+    @pytest.mark.p1
     def test_sma_crossover_no_lookahead_bias(self):
         assert_no_lookahead_bias(SmaCross, fast=10, slow=20)
 
+    @pytest.mark.test_id("2.1-ATDD-007")
+    @pytest.mark.p1
     def test_sma_crossover_invalid_params_raise(self):
         with pytest.raises(ValueError):
             SmaCross(fast=50, slow=20)
@@ -58,11 +72,15 @@ class TestStory21SmaCrossover:
         with pytest.raises(ValueError):
             SmaCross(fast=-1, slow=50)
 
+    @pytest.mark.test_id("2.1-ATDD-008")
+    @pytest.mark.p1
     def test_sma_crossover_allow_short_mode(self, ohlcv_500):
         strategy = SmaCross(fast=20, slow=50, allow_short=True)
         signals = strategy.generate_signals(ohlcv_500)
         assert -1.0 in set(signals.unique()), "allow_short=True should produce -1 signals"
 
+    @pytest.mark.test_id("2.1-ATDD-009")
+    @pytest.mark.p1
     def test_sma_crossover_identical_seed_identical_signals(self):
         df1 = _synthetic_ohlcv(n=500, seed=42)
         df2 = _synthetic_ohlcv(n=500, seed=42)

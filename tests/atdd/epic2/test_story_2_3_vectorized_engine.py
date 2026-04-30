@@ -8,6 +8,7 @@ from __future__ import annotations
 import time
 
 import pandas as pd
+import pytest
 
 from trade_advisor.backtest.engine import run_backtest
 from trade_advisor.backtest.protocols import BacktestEngine
@@ -19,6 +20,8 @@ from trade_advisor.strategies.sma_cross import SmaCross
 class TestStory23VectorizedBacktest:
     """Story 2.3: Fast vectorized backtest execution."""
 
+    @pytest.mark.test_id("2.3-ATDD-001")
+    @pytest.mark.p1
     def test_vectorized_backtest_produces_result(self, ohlcv_500, backtest_config):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)
@@ -29,12 +32,16 @@ class TestStory23VectorizedBacktest:
         assert hasattr(result, "trades")
         assert hasattr(result, "config")
 
+    @pytest.mark.test_id("2.3-ATDD-002")
+    @pytest.mark.p1
     def test_equity_curve_starts_at_initial_cash(self, ohlcv_500, backtest_config):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)
         result = run_backtest(ohlcv_500, signals, backtest_config)
         assert float(result.equity.iloc[0]) == float(backtest_config.initial_cash)
 
+    @pytest.mark.test_id("2.3-ATDD-003")
+    @pytest.mark.p1
     def test_backtest_result_contains_trade_list(self, ohlcv_500, backtest_config):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)
@@ -47,6 +54,8 @@ class TestStory23VectorizedBacktest:
         assert "return" in result.trades.columns
         assert "weight" in result.trades.columns
 
+    @pytest.mark.test_id("2.3-ATDD-004")
+    @pytest.mark.p2
     def test_performance_10yr_50_symbols_under_10s(self, ohlcv_50_symbols):
         strategy = SmaCross(fast=20, slow=50)
         config = BacktestConfig(cost=CostModel(commission_pct=0.001))
@@ -58,6 +67,8 @@ class TestStory23VectorizedBacktest:
         elapsed = time.monotonic() - start
         assert elapsed < 10.0, f"50-symbol backtest took {elapsed:.1f}s, exceeds 10s NFR-P1"
 
+    @pytest.mark.test_id("2.3-ATDD-005")
+    @pytest.mark.p1
     def test_deterministic_identical_config_same_equity(self, ohlcv_500, zero_cost_config):
         strategy = SmaCross(fast=20, slow=50)
         s1 = strategy.generate_signals(ohlcv_500)
@@ -69,12 +80,18 @@ class TestStory23VectorizedBacktest:
 
         pd.testing.assert_series_equal(result1.equity, result2.equity)
 
+    @pytest.mark.test_id("2.3-ATDD-006")
+    @pytest.mark.p1
     def test_backtest_engine_protocol_exists(self):
         assert BacktestEngine is not None
 
+    @pytest.mark.test_id("2.3-ATDD-007")
+    @pytest.mark.p1
     def test_vectorized_engine_satisfies_protocol(self):
         assert isinstance(VectorizedEngine(), BacktestEngine)
 
+    @pytest.mark.test_id("2.3-ATDD-008")
+    @pytest.mark.p1
     def test_to_frame_produces_dataframe(self, ohlcv_500, backtest_config):
         strategy = SmaCross(fast=20, slow=50)
         signals = strategy.generate_signals(ohlcv_500)

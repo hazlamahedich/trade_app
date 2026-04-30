@@ -13,15 +13,21 @@ from trade_advisor.strategies.sma_cross import SmaCross
 
 
 class TestProtocolConformance:
+    @pytest.mark.test_id("1.1-UNIT-001")
+    @pytest.mark.p1
     def test_sma_cross_satisfies_strategy_protocol(self):
         s = SmaCross(fast=10, slow=30)
         assert isinstance(s, Strategy)
 
+    @pytest.mark.test_id("1.1-UNIT-002")
+    @pytest.mark.p1
     def test_runtime_checkable_decorator_present(self):
         assert hasattr(Strategy, "__protocol_attrs__") or not hasattr(
             Strategy, "__abstractmethods__"
         )
 
+    @pytest.mark.test_id("1.1-UNIT-003")
+    @pytest.mark.p1
     def test_custom_class_satisfies_protocol(self):
         class MinimalStrategy:
             name = "minimal"
@@ -40,17 +46,23 @@ class TestProtocolConformance:
         obj = MinimalStrategy()
         assert isinstance(obj, Strategy)
 
+    @pytest.mark.test_id("1.1-UNIT-004")
+    @pytest.mark.p2
     def test_protocol_missing_method_detected(self):
         class Incomplete:
             name = "incomplete"
 
         assert not isinstance(Incomplete(), Strategy)
 
+    @pytest.mark.test_id("1.1-UNIT-005")
+    @pytest.mark.p1
     def test_strategy_conforms_to_protocol_helper(self):
         assert strategy_conforms_to_protocol(SmaCross, fast=10, slow=30)
 
 
 class TestSignalModel:
+    @pytest.mark.test_id("1.1-UNIT-006")
+    @pytest.mark.p1
     def test_signal_model_valid_directions(self):
         for val in [1.0, 0.0, -1.0, 0.5]:
             s = SignalModel(
@@ -61,6 +73,8 @@ class TestSignalModel:
             )
             assert s.signal == val
 
+    @pytest.mark.test_id("1.1-UNIT-007")
+    @pytest.mark.p2
     def test_signal_model_rejects_out_of_range(self):
         for val in [2.0, -2.0, 1.5, -1.5]:
             with pytest.raises(ValidationError, match="signal"):
@@ -71,6 +85,8 @@ class TestSignalModel:
                     strategy_name="sma",
                 )
 
+    @pytest.mark.test_id("1.1-UNIT-008")
+    @pytest.mark.p2
     def test_signal_model_confidence_bounds(self):
         SignalModel(
             timestamp="2024-01-01T00:00:00Z",
@@ -95,6 +111,8 @@ class TestSignalModel:
                 strategy_name="sma",
             )
 
+    @pytest.mark.test_id("1.1-UNIT-009")
+    @pytest.mark.p2
     def test_signal_model_frozen(self):
         s = SignalModel(
             timestamp="2024-01-01T00:00:00Z",
@@ -107,6 +125,8 @@ class TestSignalModel:
 
 
 class TestSignalBatch:
+    @pytest.mark.test_id("1.1-UNIT-010")
+    @pytest.mark.p2
     def test_signal_batch_schema(self):
         s1 = SignalModel(
             timestamp="2024-01-01T00:00:00Z",
@@ -128,6 +148,8 @@ class TestSignalBatch:
         assert len(batch.signals) == 2
         assert batch.strategy_name == "sma"
 
+    @pytest.mark.test_id("1.1-UNIT-011")
+    @pytest.mark.p2
     def test_signal_batch_json_serialization(self):
         s = SignalModel(
             timestamp="2024-01-01T00:00:00Z",
@@ -146,14 +168,20 @@ class TestSignalBatch:
 
 
 class TestLatencyProperties:
+    @pytest.mark.test_id("1.1-UNIT-012")
+    @pytest.mark.p1
     def test_information_latency_default(self):
         s = SmaCross(fast=10, slow=30)
         assert s.information_latency == 1
 
+    @pytest.mark.test_id("1.1-UNIT-013")
+    @pytest.mark.p1
     def test_warmup_period_returns_slow(self):
         s = SmaCross(fast=10, slow=30)
         assert s.warmup_period == 30
 
+    @pytest.mark.test_id("1.1-UNIT-033")
+    @pytest.mark.p1
     def test_warmup_period_custom_slow(self):
         s = SmaCross(fast=5, slow=50)
         assert s.warmup_period == 50

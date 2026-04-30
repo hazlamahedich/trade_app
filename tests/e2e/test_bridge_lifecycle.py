@@ -28,6 +28,8 @@ def page_with_server(browser, fastapi_server):
 
 
 class TestBridgeLifecycle:
+    @pytest.mark.test_id("2.9-E2E-006")
+    @pytest.mark.p2
     def test_hydration_signal_appears(self, page_with_server):
         page, _ = page_with_server
         islands = page.query_selector_all("[data-preact-mount]")
@@ -37,6 +39,8 @@ class TestBridgeLifecycle:
                 f"Island should have status pending or hydrated, got: {status}"
             )
 
+    @pytest.mark.test_id("2.9-E2E-007")
+    @pytest.mark.p2
     def test_no_console_errors_on_load(self, page_with_server):
         page, server = page_with_server
         errors = []
@@ -46,6 +50,8 @@ class TestBridgeLifecycle:
         severe = [e for e in errors if "bridge" in e.text.lower()]
         assert len(severe) == 0, f"Bridge-related console errors: {[e.text for e in severe]}"
 
+    @pytest.mark.test_id("2.9-E2E-008")
+    @pytest.mark.p2
     def test_navigate_away_and_back_no_errors(self, page_with_server):
         page, server = page_with_server
         errors = []
@@ -61,6 +67,8 @@ class TestBridgeLifecycle:
         severe = [e for e in errors if "bridge" in e.text.lower()]
         assert len(severe) == 0, f"Errors after navigation: {[e.text for e in severe]}"
 
+    @pytest.mark.test_id("2.9-E2E-009")
+    @pytest.mark.p2
     def test_mount_unmount_cycles_no_leak(self, page_with_server):
         page, server = page_with_server
         page.goto(server + "/data", wait_until="networkidle")

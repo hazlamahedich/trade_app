@@ -10,6 +10,8 @@ pytestmark = pytest.mark.integration
 class TestDataFetch:
     """Given a real symbol, When data is fetched, Then OHLCV is returned."""
 
+    @pytest.mark.test_id("0.0-INT-001")
+    @pytest.mark.p2
     def test_fetch_spy(self, real_symbol, real_start_date):
         from trade_advisor.data.cache import get_ohlcv
 

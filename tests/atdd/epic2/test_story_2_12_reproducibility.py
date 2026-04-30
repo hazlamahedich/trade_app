@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 
 class TestStory212Reproducibility:
     """Story 2.12: Deterministic run IDs and full reproducibility."""
 
+    @pytest.mark.test_id("2.12-ATDD-001")
+    @pytest.mark.p1
     def test_deterministic_run_id_from_config_hash(self):
         from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
@@ -19,6 +23,8 @@ class TestStory212Reproducibility:
         id2 = generate_run_id(inputs2)
         assert id1 == id2
 
+    @pytest.mark.test_id("2.12-ATDD-002")
+    @pytest.mark.p1
     def test_different_config_different_run_id(self):
         from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
@@ -32,6 +38,8 @@ class TestStory212Reproducibility:
         id2 = generate_run_id(inputs2)
         assert id1 != id2
 
+    @pytest.mark.test_id("2.12-ATDD-003")
+    @pytest.mark.p1
     def test_run_metadata_stored_in_db(self, ohlcv_500, backtest_config):
         from trade_advisor.experiments.tracker import (
             HashedRunInputs,
@@ -47,6 +55,8 @@ class TestStory212Reproducibility:
         assert run_id.startswith("run_")
         assert len(config_hash) == 64
 
+    @pytest.mark.test_id("2.12-ATDD-004")
+    @pytest.mark.p1
     def test_rerun_produces_bitwise_identical_results(self, ohlcv_500, zero_cost_config):
         from trade_advisor.backtest.engine import run_backtest
         from trade_advisor.strategies.sma_cross import SmaCross
@@ -61,6 +71,8 @@ class TestStory212Reproducibility:
 
         assert result1.equity.values.tobytes() == result2.equity.values.tobytes()
 
+    @pytest.mark.test_id("2.12-ATDD-005")
+    @pytest.mark.p1
     def test_run_record_includes_pre_mortem(self):
         from trade_advisor.experiments.tracker import (
             ExperimentRecord,
@@ -81,6 +93,8 @@ class TestStory212Reproducibility:
         )
         assert record.pre_mortem == "I expect Sharpe > 1.0"
 
+    @pytest.mark.test_id("2.12-ATDD-006")
+    @pytest.mark.p1
     def test_package_versions_in_hash(self):
         from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
@@ -88,6 +102,8 @@ class TestStory212Reproducibility:
         inputs2 = HashedRunInputs(config={"fast": 20}, package_versions='{"numpy": "1.26.0"}')
         assert generate_run_id(inputs1) != generate_run_id(inputs2)
 
+    @pytest.mark.test_id("2.12-ATDD-007")
+    @pytest.mark.p1
     def test_dirty_tree_warning(self):
         from trade_advisor.experiments.tracker import is_dirty_tree
 

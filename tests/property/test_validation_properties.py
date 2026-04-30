@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -34,6 +35,8 @@ def _valid_ohlcv_df(n_rows: int) -> pd.DataFrame:
 
 @settings(max_examples=50)
 @given(n_rows=st.integers(min_value=0, max_value=200))
+@pytest.mark.test_id("1.4-PROP-001")
+@pytest.mark.p0
 def test_input_never_mutated(n_rows: int):
     if n_rows == 0:
         df = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])
@@ -46,6 +49,8 @@ def test_input_never_mutated(n_rows: int):
 
 @settings(max_examples=50)
 @given(n_rows=st.integers(min_value=2, max_value=200))
+@pytest.mark.test_id("1.4-PROP-002")
+@pytest.mark.p0
 def test_no_duplicate_anomaly_entries(n_rows: int):
     df = _valid_ohlcv_df(n_rows)
     result = detect_anomalies(df, symbol="TEST")
@@ -55,6 +60,8 @@ def test_no_duplicate_anomaly_entries(n_rows: int):
 
 @settings(max_examples=30)
 @given(n_rows=st.integers(min_value=5, max_value=50))
+@pytest.mark.test_id("1.4-PROP-003")
+@pytest.mark.p0
 def test_constant_close_no_outlier(n_rows: int):
     df = _valid_ohlcv_df(n_rows)
     df["close"] = 100.0
@@ -68,6 +75,8 @@ def test_constant_close_no_outlier(n_rows: int):
 
 @settings(max_examples=50)
 @given(n_rows=st.integers(min_value=0, max_value=200))
+@pytest.mark.test_id("1.4-PROP-004")
+@pytest.mark.p0
 def test_result_always_has_correct_level(n_rows: int):
     if n_rows == 0:
         df = pd.DataFrame(columns=["timestamp", "open", "high", "low", "close", "volume"])

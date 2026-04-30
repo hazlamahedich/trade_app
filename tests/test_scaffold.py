@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import subprocess
 
+import pytest
 
+
+@pytest.mark.test_id("1.0-UNIT-012")
+@pytest.mark.p3
 def test_imports() -> None:
     for mod in [
         "pandas",
@@ -15,6 +19,8 @@ def test_imports() -> None:
         __import__(mod)
 
 
+@pytest.mark.test_id("1.0-UNIT-013")
+@pytest.mark.p3
 def test_cli_help() -> None:
     result = subprocess.run(["ta", "--help"], capture_output=True, text=True)
     assert result.returncode == 0
@@ -23,6 +29,8 @@ def test_cli_help() -> None:
     assert "dashboard" in result.stdout
 
 
+@pytest.mark.test_id("1.0-UNIT-014")
+@pytest.mark.p3
 def test_conftest_fixture(synthetic_ohlcv):  # type: ignore[no-untyped-def]
     assert len(synthetic_ohlcv) == 500
     assert {"open", "high", "low", "close", "volume"}.issubset(
@@ -30,6 +38,8 @@ def test_conftest_fixture(synthetic_ohlcv):  # type: ignore[no-untyped-def]
     )
 
 
+@pytest.mark.test_id("1.0-UNIT-015")
+@pytest.mark.p3
 def test_fastapi_health() -> None:
     from fastapi.testclient import TestClient
 

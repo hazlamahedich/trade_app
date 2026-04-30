@@ -24,6 +24,8 @@ def _run_both(ohlcv, signal, zero_cost_config):
     return vec_result, ed_result
 
 
+@pytest.mark.test_id("2.4-CONV-001")
+@pytest.mark.p0
 @pytest.mark.convergence
 def test_convergence_flat_signal(ohlcv_500, flat_signal, zero_cost_config):
     vec_result, ed_result = _run_both(ohlcv_500, flat_signal, zero_cost_config)
@@ -36,6 +38,8 @@ def test_convergence_flat_signal(ohlcv_500, flat_signal, zero_cost_config):
     assert len(vec_result.trades) == len(ed_result.trades)
 
 
+@pytest.mark.test_id("2.4-CONV-002")
+@pytest.mark.p0
 @pytest.mark.convergence
 def test_convergence_sma_crossover(ohlcv_500, sma_crossover_signal, zero_cost_config):
     vec_result, ed_result = _run_both(ohlcv_500, sma_crossover_signal, zero_cost_config)
@@ -48,6 +52,8 @@ def test_convergence_sma_crossover(ohlcv_500, sma_crossover_signal, zero_cost_co
     assert len(vec_result.trades) == len(ed_result.trades)
 
 
+@pytest.mark.test_id("2.4-CONV-003")
+@pytest.mark.p0
 @pytest.mark.convergence
 def test_convergence_single_trade(ohlcv_500, single_long_signal, zero_cost_config):
     vec_result, ed_result = _run_both(ohlcv_500, single_long_signal, zero_cost_config)
@@ -60,6 +66,8 @@ def test_convergence_single_trade(ohlcv_500, single_long_signal, zero_cost_confi
     assert len(vec_result.trades) == len(ed_result.trades)
 
 
+@pytest.mark.test_id("2.4-CONV-004")
+@pytest.mark.p0
 @pytest.mark.convergence
 def test_convergence_signal_reversal(ohlcv_500, reversal_signal, zero_cost_config):
     vec_result, ed_result = _run_both(ohlcv_500, reversal_signal, zero_cost_config)
@@ -72,6 +80,8 @@ def test_convergence_signal_reversal(ohlcv_500, reversal_signal, zero_cost_confi
     assert len(vec_result.trades) == len(ed_result.trades)
 
 
+@pytest.mark.test_id("2.4-CONV-005")
+@pytest.mark.p0
 @pytest.mark.convergence
 def test_convergence_divergence_detected(ohlcv_500, sma_crossover_signal):
     from trade_advisor.config import BacktestConfig, CostModel

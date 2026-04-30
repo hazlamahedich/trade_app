@@ -7,10 +7,14 @@ IS label present on all results, regime stratification when data available.
 
 from __future__ import annotations
 
+import pytest
+
 
 class TestStory28BaselineComparison:
     """Story 2.8: Every backtest compared against buy-and-hold with integrity checks."""
 
+    @pytest.mark.test_id("2.8-ATDD-001")
+    @pytest.mark.p1
     def test_buy_and_hold_always_shown(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.baseline import compute_with_baseline
         from trade_advisor.strategies.sma_cross import SmaCross
@@ -22,6 +26,8 @@ class TestStory28BaselineComparison:
         assert hasattr(comparison, "buy_and_hold_metrics")
         assert comparison.buy_and_hold_metrics is not None
 
+    @pytest.mark.test_id("2.8-ATDD-002")
+    @pytest.mark.p1
     def test_impossible_negative_portfolio_detected(self):
         import pandas as pd
 
@@ -32,6 +38,8 @@ class TestStory28BaselineComparison:
         assert not result.is_valid
         assert any("negative" in e.lower() for e in result.errors)
 
+    @pytest.mark.test_id("2.8-ATDD-003")
+    @pytest.mark.p1
     def test_impossible_returns_over_100_pct_detected(self):
         import pandas as pd
 
@@ -41,6 +49,8 @@ class TestStory28BaselineComparison:
         result = check_integrity(equity)
         assert not result.is_valid
 
+    @pytest.mark.test_id("2.8-ATDD-004")
+    @pytest.mark.p1
     def test_equity_curve_gaps_detected(self):
         import pandas as pd
 
@@ -50,6 +60,8 @@ class TestStory28BaselineComparison:
         result = check_integrity(equity)
         assert not result.is_valid
 
+    @pytest.mark.test_id("2.8-ATDD-005")
+    @pytest.mark.p1
     def test_is_label_shown_on_all_results(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.baseline import compute_with_baseline
         from trade_advisor.strategies.sma_cross import SmaCross
@@ -59,6 +71,8 @@ class TestStory28BaselineComparison:
         comparison = compute_with_baseline(ohlcv_500, signals, backtest_config)
         assert comparison.is_label == "In-Sample Only — not validated for live trading"
 
+    @pytest.mark.test_id("2.8-ATDD-006")
+    @pytest.mark.p1
     def test_integrity_failure_halts_display(self):
         import pandas as pd
 
@@ -68,6 +82,8 @@ class TestStory28BaselineComparison:
         result = check_integrity(equity)
         assert result.should_halt_display is True
 
+    @pytest.mark.test_id("2.8-ATDD-007")
+    @pytest.mark.p1
     def test_regime_stratification_when_data_available(self, ohlcv_500, backtest_config):
         from trade_advisor.backtest.regime import stratify_by_regime
         from trade_advisor.strategies.sma_cross import SmaCross

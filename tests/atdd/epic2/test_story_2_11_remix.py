@@ -3,79 +3,27 @@
 from __future__ import annotations
 
 import pytest
-import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-
-from trade_advisor.core.config import DatabaseConfig
-from trade_advisor.data.storage import DataRepository
-from trade_advisor.infra.db import DatabaseManager
+from tests.atdd.epic2.conftest import RUN_DATA
 
 
-def _make_ohlcv_for_backtest(n: int = 500, symbol: str = "TEST", start: str = "2020-01-01"):
-    from tests.support.factories.ohlcv_factory import make_ohlcv
-
-    return make_ohlcv(n=n, symbol=symbol, start=start, seed=42)
-
-
-@pytest_asyncio.fixture
-async def async_client_with_data():
-    from trade_advisor.main import app
-
-    config = DatabaseConfig(path=":memory:")
-    db = DatabaseManager(config)
-    async with db:
-        original_db = getattr(app.state, "db", None)
-        app.state.db = db
-        try:
-            df = _make_ohlcv_for_backtest(n=500, symbol="SPY", start="2020-01-01")
-            repo = DataRepository(db)
-            await repo.store(df, provider_name="synthetic")
-
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                yield client
-        finally:
-            app.state.db = original_db
-
-
-@pytest.fixture(autouse=True)
-def _reset_result_store():
-    from trade_advisor.web.services.result_store import get_result_store
-
-    get_result_store()._store.clear()
-    yield
-    get_result_store()._store.clear()
-
-
-_RUN_DATA = {
-    "strategy_type": "sma",
-    "symbol": "SPY",
-    "fast": "20",
-    "slow": "50",
-    "interval": "1d",
-    "start_date": "2021-01-01",
-    "end_date": "2024-01-01",
-    "engine_mode": "vectorized",
-    "commission_pct": "0.001",
-    "slippage_pct": "0.0005",
-    "initial_cash": "100000",
-}
-
-
-async def _run_backtest(client: AsyncClient) -> str:
-    resp = await client.post("/strategies/run", data=_RUN_DATA, headers={"hx-request": "true"})
+async def _run_backtest(client) -> str:
+    resp = await client.post("/strategies/run", data=RUN_DATA, headers={"hx-request": "true"})
     redirect = resp.headers.get("hx-redirect", "")
     assert redirect, f"Expected HX-Redirect, got: {resp.headers}"
     return redirect.split("/")[-1]
 
 
 class TestVariantGeneration:
+    @pytest.mark.test_id("2.11-ATDD-001")
+    @pytest.mark.p1
     def test_generate_variants_sma_default(self):
         from trade_advisor.web.services.remix import generate_variants
 
         variants = generate_variants({"fast": 20, "slow": 50})
         assert len(variants) >= 2
 
+    @pytest.mark.test_id("2.11-ATDD-002")
+    @pytest.mark.p1
     def test_generate_variants_respects_fast_lt_slow(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -83,6 +31,8 @@ class TestVariantGeneration:
         for v in variants:
             assert v.params["fast"] < v.params["slow"]
 
+    @pytest.mark.test_id("2.11-ATDD-003")
+    @pytest.mark.p2
     def test_generate_variants_fast_at_minimum(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -91,6 +41,8 @@ class TestVariantGeneration:
             if v.params["fast"] < 2 and v.params["slow"] < 5:
                 pytest.fail("Narrow variant should have been excluded")
 
+    @pytest.mark.test_id("2.11-ATDD-004")
+    @pytest.mark.p2
     def test_generate_variants_golden_cross(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -98,6 +50,8 @@ class TestVariantGeneration:
         labels = [v.label for v in variants]
         assert any("50" in lbl and "200" in lbl for lbl in labels)
 
+    @pytest.mark.test_id("2.11-ATDD-005")
+    @pytest.mark.p2
     def test_generate_variants_no_golden_cross_when_slow_high(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -105,39 +59,53 @@ class TestVariantGeneration:
         labels = [v.label for v in variants]
         assert not any("50" in lbl and "200" in lbl for lbl in labels)
 
+    @pytest.mark.test_id("2.11-ATDD-006")
+    @pytest.mark.p2
     def test_generate_variants_unknown_strategy(self):
         from trade_advisor.web.services.remix import generate_variants
 
         variants = generate_variants({"fast": 20, "slow": 50}, strategy_type="rsi")
         assert variants == []
 
+    @pytest.mark.test_id("2.11-ATDD-007")
+    @pytest.mark.p2
     def test_generate_variants_exception_fallback(self):
         from trade_advisor.web.services.remix import generate_variants
 
         variants = generate_variants({"fast": object()}, strategy_type="sma")
         assert variants == []
 
+    @pytest.mark.test_id("2.11-ATDD-008")
+    @pytest.mark.p1
     def test_generate_variants_capped_at_max(self):
         from trade_advisor.web.services.remix import MAX_VARIANTS, generate_variants
 
         variants = generate_variants({"fast": 20, "slow": 50})
         assert len(variants) <= MAX_VARIANTS
 
+    @pytest.mark.test_id("2.11-ATDD-009")
+    @pytest.mark.p1
     def test_validate_sma_params_rejects_fast_ge_slow(self):
         from trade_advisor.web.services.remix import _validate_sma_params
 
         assert _validate_sma_params(20, 20) is False
 
+    @pytest.mark.test_id("2.11-ATDD-010")
+    @pytest.mark.p2
     def test_validate_sma_params_rejects_fast_lt_1(self):
         from trade_advisor.web.services.remix import _validate_sma_params
 
         assert _validate_sma_params(0, 5) is False
 
+    @pytest.mark.test_id("2.11-ATDD-011")
+    @pytest.mark.p2
     def test_validate_sma_params_rejects_slow_lt_2(self):
         from trade_advisor.web.services.remix import _validate_sma_params
 
         assert _validate_sma_params(1, 1) is False
 
+    @pytest.mark.test_id("2.11-ATDD-012")
+    @pytest.mark.p2
     def test_variant_suggestion_model(self):
         from trade_advisor.web.services.remix import VariantSuggestion
 
@@ -146,6 +114,8 @@ class TestVariantGeneration:
         assert v.hint == "hint"
         assert v.params == {"fast": 10}
 
+    @pytest.mark.test_id("2.11-ATDD-013")
+    @pytest.mark.p1
     def test_generate_variants_deterministic(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -158,6 +128,8 @@ class TestVariantGeneration:
 
 
 class TestRoutePrefill:
+    @pytest.mark.test_id("2.11-ATDD-014")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_strategy_lab_prefill_from_query_params(self, async_client_with_data):
         response = await async_client_with_data.get("/strategies?fast=10&slow=30")
@@ -166,6 +138,8 @@ class TestRoutePrefill:
         assert 'value="10"' in text
         assert 'value="30"' in text
 
+    @pytest.mark.test_id("2.11-ATDD-015")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_strategy_lab_no_prefill_uses_defaults(self, async_client_with_data):
         response = await async_client_with_data.get("/strategies")
@@ -174,12 +148,16 @@ class TestRoutePrefill:
         assert 'value="20"' in text or "20" in text
         assert "SPY" in text
 
+    @pytest.mark.test_id("2.11-ATDD-016")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_strategy_lab_prefill_sanitizes_symbol(self, async_client_with_data):
         response = await async_client_with_data.get("/strategies?symbol=%3Cscript%3E")
         assert response.status_code == 200
         assert "<script>" not in response.text or "SPY" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-017")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_strategy_lab_prefill_bad_numeric(self, async_client_with_data):
         response = await async_client_with_data.get("/strategies?fast=abc")
@@ -187,6 +165,8 @@ class TestRoutePrefill:
         text = response.text
         assert 'value="20"' in text or "20" in text
 
+    @pytest.mark.test_id("2.11-ATDD-018")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_backtest_viewer_context_has_variants(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -194,6 +174,8 @@ class TestRoutePrefill:
         assert response.status_code == 200
         assert "variant-chip" in response.text or "variant-chips" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-019")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_backtest_viewer_context_has_remix_url(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -202,10 +184,12 @@ class TestRoutePrefill:
         assert "/strategies?" in response.text
         assert "fast=" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-020")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_source_run_id_on_stored_result(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
-        data = dict(_RUN_DATA)
+        data = dict(RUN_DATA)
         data["source_run_id"] = run_id
         resp = await async_client_with_data.post(
             "/strategies/run", data=data, headers={"hx-request": "true"}
@@ -218,10 +202,12 @@ class TestRoutePrefill:
         assert result is not None
         assert result.source_run_id == run_id
 
+    @pytest.mark.test_id("2.11-ATDD-021")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_source_run_id_not_in_config_dict_for_sma(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
-        data = dict(_RUN_DATA)
+        data = dict(RUN_DATA)
         data["source_run_id"] = run_id
         resp = await async_client_with_data.post(
             "/strategies/run", data=data, headers={"hx-request": "true"}
@@ -233,10 +219,12 @@ class TestRoutePrefill:
         result = await store.get(new_run_id)
         assert "source_run_id" not in result.config_dict
 
+    @pytest.mark.test_id("2.11-ATDD-022")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_source_run_id_passed_to_template(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
-        data = dict(_RUN_DATA)
+        data = dict(RUN_DATA)
         data["source_run_id"] = run_id
         resp = await async_client_with_data.post(
             "/strategies/run", data=data, headers={"hx-request": "true"}
@@ -246,10 +234,12 @@ class TestRoutePrefill:
         assert response.status_code == 200
         assert run_id in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-023")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_expired_source_run_id_shows_expired_message(self, async_client_with_data):
         _run_id = await _run_backtest(async_client_with_data)
-        data = dict(_RUN_DATA)
+        data = dict(RUN_DATA)
         data["source_run_id"] = "nonexistent_parent"
         data["fast"] = "15"
         resp = await async_client_with_data.post(
@@ -261,36 +251,48 @@ class TestRoutePrefill:
 
 
 class TestTemplateRendering:
+    @pytest.mark.test_id("2.11-ATDD-024")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_template_renders_remix_button(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert "remix-button" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-025")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_template_remix_button_has_edit_icon(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert "remix-button--edit" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-026")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_template_renders_variant_chips(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert "variant-chip" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-027")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_template_variant_chip_posts_to_run(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert 'action="/strategies/run"' in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-028")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_template_variant_chip_has_play_icon(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert "variant-chip--auto" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-029")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_template_variant_chip_has_source_run_id(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -298,10 +300,12 @@ class TestTemplateRendering:
         assert 'name="source_run_id"' in response.text
         assert f'value="{run_id}"' in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-030")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_template_renders_remixed_from_link(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
-        data = dict(_RUN_DATA)
+        data = dict(RUN_DATA)
         data["source_run_id"] = run_id
         resp = await async_client_with_data.post(
             "/strategies/run", data=data, headers={"hx-request": "true"}
@@ -310,16 +314,23 @@ class TestTemplateRendering:
         response = await async_client_with_data.get(f"/backtests/{new_run_id}")
         assert "remixed-from" in response.text.lower()
 
+    @pytest.mark.test_id("2.11-ATDD-031")
+    @pytest.mark.p1
     @pytest.mark.asyncio
-    async def test_template_expired_parent_message(self):
-        pass
+    async def test_template_expired_parent_message(self, async_client_with_data):
+        response = await async_client_with_data.get("/backtests/expired_run_id_that_does_not_exist")
+        assert response.status_code == 404
 
+    @pytest.mark.test_id("2.11-ATDD-032")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_template_no_remixed_from_without_source(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
         response = await async_client_with_data.get(f"/backtests/{run_id}")
         assert 'href="/backtests/' not in response.text or "Remixed from" not in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-033")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_template_remix_button_distinct_from_chips(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -329,6 +340,8 @@ class TestTemplateRendering:
 
 
 class TestEdgeCases:
+    @pytest.mark.test_id("2.11-ATDD-034")
+    @pytest.mark.p2
     @pytest.mark.asyncio
     async def test_remix_url_int_values_cast_to_str(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -336,6 +349,8 @@ class TestEdgeCases:
         assert response.status_code == 200
         assert "fast=" in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-035")
+    @pytest.mark.p2
     def test_source_run_id_excluded_from_variant_generation(self):
         from trade_advisor.web.services.remix import generate_variants
 
@@ -346,6 +361,8 @@ class TestEdgeCases:
         for v in variants:
             assert "source_run_id" not in v.params
 
+    @pytest.mark.test_id("2.11-ATDD-036")
+    @pytest.mark.p1
     @pytest.mark.asyncio
     async def test_chip_form_carries_all_config_fields(self, async_client_with_data):
         run_id = await _run_backtest(async_client_with_data)
@@ -363,12 +380,16 @@ class TestEdgeCases:
         ):
             assert f'name="{field_name}"' in response.text
 
+    @pytest.mark.test_id("2.11-ATDD-037")
+    @pytest.mark.p1
     def test_validate_sma_params_accepts_valid(self):
         from trade_advisor.web.services.remix import _validate_sma_params
 
         assert _validate_sma_params(1, 2) is True
         assert _validate_sma_params(20, 50) is True
 
+    @pytest.mark.test_id("2.11-ATDD-038")
+    @pytest.mark.p1
     def test_variant_hints_are_directional(self):
         from trade_advisor.web.services.remix import generate_variants
 

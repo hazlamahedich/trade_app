@@ -10,12 +10,15 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from tests.helpers import _synthetic_ohlcv, assert_no_lookahead_bias
 from trade_advisor.strategies.sma_cross import SmaCross
 
 
 class TestLookaheadBias:
+    @pytest.mark.test_id("1.1-UNIT-033")
+    @pytest.mark.p0
     def test_oracle_shuffle_sma_cross(self):
         strategy = SmaCross(fast=10, slow=30)
         ohlcv_full = _synthetic_ohlcv(n=300, seed=123)
@@ -40,6 +43,8 @@ class TestLookaheadBias:
             obj="signals up to cutoff must be identical after shuffling future data",
         )
 
+    @pytest.mark.test_id("1.1-UNIT-034")
+    @pytest.mark.p0
     def test_truncation_test_sma_cross(self):
         strategy = SmaCross(fast=10, slow=30)
         ohlcv_full = _synthetic_ohlcv(n=300, seed=123)
@@ -56,6 +61,8 @@ class TestLookaheadBias:
             obj="signals at cutoff must not change when future data is added",
         )
 
+    @pytest.mark.test_id("1.1-UNIT-035")
+    @pytest.mark.p0
     def test_signal_index_aligned_with_input(self):
         strategy = SmaCross(fast=10, slow=30)
         ohlcv = _synthetic_ohlcv(n=200, seed=42)
@@ -63,18 +70,26 @@ class TestLookaheadBias:
         assert len(signals) == len(ohlcv)
         pd.testing.assert_index_equal(signals.index, ohlcv.index)
 
+    @pytest.mark.test_id("1.1-UNIT-036")
+    @pytest.mark.p0
     def test_signal_values_in_valid_range(self):
         strategy = SmaCross(fast=10, slow=30)
         ohlcv = _synthetic_ohlcv(n=200, seed=42)
         signals = strategy.generate_signals(ohlcv)
         assert (signals >= -1.0).all() and (signals <= 1.0).all()
 
+    @pytest.mark.test_id("1.1-UNIT-037")
+    @pytest.mark.p0
     def test_conftest_assert_no_lookahead_fixture(self):
         assert_no_lookahead_bias(SmaCross, fast=10, slow=30)
 
+    @pytest.mark.test_id("1.1-UNIT-038")
+    @pytest.mark.p0
     def test_oracle_shuffle_sma_cross_allow_short(self):
         assert_no_lookahead_bias(SmaCross, fast=10, slow=30, allow_short=True)
 
+    @pytest.mark.test_id("1.1-UNIT-039")
+    @pytest.mark.p0
     def test_truncation_sma_cross_allow_short(self):
         strategy = SmaCross(fast=10, slow=30, allow_short=True)
         ohlcv_full = _synthetic_ohlcv(n=300, seed=123)
