@@ -148,7 +148,8 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
         variants = [v.model_dump() for v in variant_objs]
 
         remix_params = {
-            k: str(v) for k, v in stored.config_dict.items()
+            k: str(v)
+            for k, v in stored.config_dict.items()
             if k != "source_run_id" and isinstance(v, (str, int, float))
         }
         remix_url = f"/strategies?{urlencode(remix_params)}" if remix_params else ""
@@ -188,5 +189,9 @@ async def backtest_viewer(request: Request, run_id: str) -> Any:
         "remix_url": remix_url,
         "source_run_id": parent_source_run_id,
         "source_expired": source_expired,
+        "persist_warning": stored.persist_warning,
+        "dirty_tree_warning": stored.dirty_tree_warning,
+        "pre_mortem": stored.pre_mortem,
+        "is_duplicate": stored.is_duplicate,
     }
     return templates.TemplateResponse(request, "pages/backtest_viewer.html", ctx)

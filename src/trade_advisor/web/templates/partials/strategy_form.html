@@ -75,6 +75,15 @@
             </div>
         </div>
     </details>
+    <details style="margin-top:1rem;">
+        <summary><strong>Add Prediction (optional)</strong></summary>
+        <div style="margin-top:0.5rem;">
+            <label for="pre_mortem">Pre-mortem prediction</label>
+            <textarea id="pre_mortem" name="pre_mortem" rows="3"
+                      placeholder="e.g., I expect Sharpe > 1.0 because..."
+                      style="width:100%;padding:0.4rem;margin-top:0.25rem;font-size:0.9rem;"></textarea>
+        </div>
+    </details>
     <div style="margin-top:1.25rem; display:flex; align-items:center; gap:1rem;">
         <button type="submit" class="btn-primary">Run Backtest</button>
         <span id="run-spinner" class="spinner htmx-indicator"></span>

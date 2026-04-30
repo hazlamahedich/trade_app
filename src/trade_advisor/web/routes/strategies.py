@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import re
+import sys
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -167,6 +168,7 @@ async def run_backtest(
     slippage_pct: float = Form(0.0005),
     initial_cash: float = Form(100000),
     source_run_id: str = Form(""),
+    pre_mortem: str = Form(""),
 ) -> Any:
     symbol = symbol.strip().upper()
     validation_error = _validate_inputs(
@@ -255,7 +257,6 @@ async def run_backtest(
     from trade_advisor.web.services.result_store import StoredResult, get_result_store
 
     store = get_result_store()
-    run_id = store.generate_run_id()
 
     config_dict = {
         "strategy_type": strategy_type,
@@ -271,6 +272,93 @@ async def run_backtest(
         "initial_cash": initial_cash,
     }
 
+    from trade_advisor.experiments.tracker import (
+        ExperimentRecord,
+        ExperimentRepository,
+        HashedRunInputs,
+        RunAnnotations,
+        compute_config_hash,
+        compute_data_fingerprint,
+        compute_result_hash,
+        generate_run_id,
+        get_code_version,
+        get_package_versions,
+        is_dirty_tree,
+    )
+
+    ohlcv_indexed = ohlcv.set_index("timestamp") if "timestamp" in ohlcv.columns else ohlcv
+    data_fp = compute_data_fingerprint(ohlcv_indexed)
+    code_ver = get_code_version()
+    dirty = is_dirty_tree()
+    pkg_versions = get_package_versions()
+    config_hash = compute_config_hash(config_dict)
+
+    hashed_inputs = HashedRunInputs(
+        config=config_dict,
+        data_fingerprint=data_fp,
+        code_version=code_ver,
+        package_versions=pkg_versions,
+        is_dirty=dirty,
+        parent_context=source_run_id if source_run_id else "",
+    )
+    run_id = generate_run_id(hashed_inputs)
+
+    annotations = RunAnnotations(
+        pre_mortem=pre_mortem if pre_mortem else None,
+    )
+
+    is_duplicate = await ExperimentRepository.run_exists(db, run_id)
+    if is_duplicate:
+        cached = await store.get(run_id)
+        if cached is not None:
+            log.info("ta:experiment:duplicate_served run_id=%s", run_id)
+            if _is_htmx(request):
+                resp = Response(content="", status_code=200)
+                resp.headers["HX-Redirect"] = f"/backtests/{run_id}"
+                return resp
+            return Response(
+                content=json.dumps({"run_id": run_id}),
+                media_type="application/json",
+                status_code=200,
+            )
+        log.info("ta:experiment:duplicate_evicted run_id=%s recomputing", run_id)
+        is_duplicate = False
+
+    result_hash = compute_result_hash(
+        comparison.strategy_result.equity,
+        comparison.strategy_result.trades,
+    )
+    metrics_json = json.dumps(
+        comparison.strategy_metrics.model_dump()
+        if hasattr(comparison.strategy_metrics, "model_dump")
+        else {},
+        default=str,
+    )
+    experiment_record = ExperimentRecord(
+        run_id=run_id,
+        config_hash=config_hash,
+        strategy=strategy_type,
+        metrics_json=metrics_json,
+        seed=0,
+        status="completed",
+        parent_run_id=source_run_id if source_run_id else None,
+        git_commit=code_ver,
+        data_fingerprint=data_fp,
+        python_version=sys.version.split()[0],
+        package_versions=pkg_versions,
+        is_dirty=dirty,
+        result_hash=result_hash,
+        pre_mortem=annotations.pre_mortem,
+        created_at=datetime.now(UTC),
+        completed_at=datetime.now(UTC),
+    )
+    persist_ok = await ExperimentRepository.store_run(db, experiment_record)
+    if not persist_ok:
+        log.warning("ta:experiment:not_persisted run_id=%s", run_id)
+
+    persist_warning = not persist_ok
+    dirty_tree_warning = dirty
+
     stored = StoredResult(
         comparison=comparison,
         trade_analysis=trade_analysis,
@@ -279,6 +367,10 @@ async def run_backtest(
         created_at=datetime.now(UTC),
         engine_mode=engine_mode,
         source_run_id=source_run_id if source_run_id else None,
+        persist_warning=persist_warning,
+        dirty_tree_warning=dirty_tree_warning,
+        pre_mortem=annotations.pre_mortem,
+        is_duplicate=is_duplicate,
     )
     await store.store(stored)
 

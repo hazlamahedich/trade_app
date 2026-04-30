@@ -18,6 +18,10 @@ class StoredResult:
     created_at: datetime
     engine_mode: str
     source_run_id: str | None = None
+    persist_warning: bool = False
+    dirty_tree_warning: bool = False
+    pre_mortem: str | None = None
+    is_duplicate: bool = False
 
 
 class InMemoryResultStore:

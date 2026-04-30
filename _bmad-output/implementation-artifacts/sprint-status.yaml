@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-04-30T18:00:00Z
+last_updated: 2026-04-30T22:00:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -69,7 +69,7 @@ development_status:
   2-9-strategy-lab-backtest-viewer-web-pages: done
   2-10-resultcard-emotional-states: done
   2-11-remix-button-auto-suggested-variants: done
-  2-12-strategy-reproducibility-deterministic-run-ids: backlog
+  2-12-strategy-reproducibility-deterministic-run-ids: done
   epic-2-retrospective: optional
 
   # Epic 3: Experiment Tracking & Reproducibility

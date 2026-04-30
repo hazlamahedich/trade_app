@@ -1,54 +1,53 @@
-"""ATDD red-phase: Story 2.12 — Strategy Reproducibility & Deterministic Run IDs.
-
-Tests assert the expected end-state AFTER full Story 2.12 implementation.
-All tests are SKIPPED (TDD red phase).
-
-Remove @pytest.mark.skip when implementing Story 2.12.
-"""
+"""ATDD: Story 2.12 — Strategy Reproducibility & Deterministic Run IDs."""
 
 from __future__ import annotations
-
-import pytest
 
 
 class TestStory212Reproducibility:
     """Story 2.12: Deterministic run IDs and full reproducibility."""
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.12 not yet implemented")
     def test_deterministic_run_id_from_config_hash(self):
-        from trade_advisor.backtest.run_id import generate_run_id
+        from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
-        config1 = {"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
-        config2 = {"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
-        id1 = generate_run_id(config1)
-        id2 = generate_run_id(config2)
+        inputs1 = HashedRunInputs(
+            config={"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
+        )
+        inputs2 = HashedRunInputs(
+            config={"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
+        )
+        id1 = generate_run_id(inputs1)
+        id2 = generate_run_id(inputs2)
         assert id1 == id2
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.12 not yet implemented")
     def test_different_config_different_run_id(self):
-        from trade_advisor.backtest.run_id import generate_run_id
+        from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
-        config1 = {"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
-        config2 = {"strategy": "sma_cross", "fast": 14, "slow": 50, "seed": 42}
-        id1 = generate_run_id(config1)
-        id2 = generate_run_id(config2)
+        inputs1 = HashedRunInputs(
+            config={"strategy": "sma_cross", "fast": 20, "slow": 50, "seed": 42}
+        )
+        inputs2 = HashedRunInputs(
+            config={"strategy": "sma_cross", "fast": 14, "slow": 50, "seed": 42}
+        )
+        id1 = generate_run_id(inputs1)
+        id2 = generate_run_id(inputs2)
         assert id1 != id2
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.12 not yet implemented")
     def test_run_metadata_stored_in_db(self, ohlcv_500, backtest_config):
-        from trade_advisor.backtest.run_id import generate_run_id
+        from trade_advisor.experiments.tracker import (
+            HashedRunInputs,
+            compute_config_hash,
+            generate_run_id,
+        )
 
-        config = {
-            "strategy": "sma_cross",
-            "fast": 20,
-            "slow": 50,
-        }
-        run_id = generate_run_id(config)
+        config = {"strategy": "sma_cross", "fast": 20, "slow": 50}
+        config_hash = compute_config_hash(config)
+        inputs = HashedRunInputs(config=config)
+        run_id = generate_run_id(inputs)
         assert run_id is not None
+        assert run_id.startswith("run_")
+        assert len(config_hash) == 64
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.12 not yet implemented")
     def test_rerun_produces_bitwise_identical_results(self, ohlcv_500, zero_cost_config):
-
         from trade_advisor.backtest.engine import run_backtest
         from trade_advisor.strategies.sma_cross import SmaCross
 
@@ -60,18 +59,37 @@ class TestStory212Reproducibility:
         signals2 = strategy2.generate_signals(ohlcv_500)
         result2 = run_backtest(ohlcv_500, signals2, zero_cost_config)
 
-        import numpy as np
+        assert result1.equity.values.tobytes() == result2.equity.values.tobytes()
 
-        np.testing.assert_array_almost_equal(
-            result1.equity.values,
-            result2.equity.values,
-            decimal=10,
+    def test_run_record_includes_pre_mortem(self):
+        from trade_advisor.experiments.tracker import (
+            ExperimentRecord,
+            HashedRunInputs,
+            RunAnnotations,
+            generate_run_id,
         )
 
-    @pytest.mark.skip(reason="ATDD red-phase: Story 2.12 not yet implemented")
-    def test_run_record_includes_pre_mortem(self):
-        from trade_advisor.backtest.run_id import generate_run_id
-
         config = {"strategy": "sma_cross", "fast": 20, "slow": 50}
-        run_id = generate_run_id(config, pre_mortem="I expect Sharpe > 1.0")
-        assert run_id is not None
+        inputs = HashedRunInputs(config=config)
+        run_id = generate_run_id(inputs)
+        annotations = RunAnnotations(pre_mortem="I expect Sharpe > 1.0")
+        record = ExperimentRecord(
+            run_id=run_id,
+            config_hash="abc123",
+            strategy="sma",
+            pre_mortem=annotations.pre_mortem,
+        )
+        assert record.pre_mortem == "I expect Sharpe > 1.0"
+
+    def test_package_versions_in_hash(self):
+        from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
+
+        inputs1 = HashedRunInputs(config={"fast": 20}, package_versions='{"numpy": "1.24.0"}')
+        inputs2 = HashedRunInputs(config={"fast": 20}, package_versions='{"numpy": "1.26.0"}')
+        assert generate_run_id(inputs1) != generate_run_id(inputs2)
+
+    def test_dirty_tree_warning(self):
+        from trade_advisor.experiments.tracker import is_dirty_tree
+
+        result = is_dirty_tree()
+        assert isinstance(result, bool)

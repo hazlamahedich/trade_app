@@ -32,6 +32,34 @@
 </div>
 {% endif %}
 
+{% if is_duplicate is defined and is_duplicate %}
+<div style="background:rgba(59,130,246,0.1);border:1px solid #3b82f6;border-radius:var(--radius);padding:1rem;margin-bottom:1rem;">
+    <strong style="color:#3b82f6;">ℹ Duplicate Run</strong>
+    <p style="margin:0.25rem 0 0;font-size:0.875rem;color:var(--text-secondary);">Identical configuration already ran — serving cached result.</p>
+</div>
+{% endif %}
+
+{% if persist_warning is defined and persist_warning %}
+<div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;border-radius:var(--radius);padding:1rem;margin-bottom:1rem;">
+    <strong style="color:#ef4444;">⚠ Run Not Persisted</strong>
+    <p style="margin:0.25rem 0 0;font-size:0.875rem;color:var(--text-secondary);">Result was not recorded for reproducibility — database write failed.</p>
+</div>
+{% endif %}
+
+{% if dirty_tree_warning is defined and dirty_tree_warning %}
+<div style="background:rgba(245,158,11,0.1);border:1px solid var(--caution);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;">
+    <strong style="color:var(--caution);">⚠ Uncommitted Changes</strong>
+    <p style="margin:0.25rem 0 0;font-size:0.875rem;color:var(--text-secondary);">Uncommitted changes detected — reproducibility not guaranteed.</p>
+</div>
+{% endif %}
+
+{% if pre_mortem is defined and pre_mortem %}
+<div class="card" style="margin-bottom:1rem;">
+    <h3 style="margin-top:0;font-size:0.95rem;">Pre-mortem Prediction</h3>
+    <p style="margin:0;font-size:0.9rem;color:var(--text-secondary);font-style:italic;">{{ pre_mortem }}</p>
+</div>
+{% endif %}
+
 {# Emotional state wrapper — server-side classified, CSS-styled #}
 {% set emotional_class = "result-card--" ~ emotional_state if emotional_state and emotional_state != "neutral" else "" %}
 <div class="card {{ emotional_class }}" data-emotional-state="{{ emotional_state }}" {% if emotional_state == "underperforming" %}style="padding:var(--pressed-flower-padding, 24px);"{% endif %}>

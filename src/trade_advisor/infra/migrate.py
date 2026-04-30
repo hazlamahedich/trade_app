@@ -49,7 +49,15 @@ _MANUAL_DIR = _MIGRATIONS_DIR / "manual"
 
 _VALID_IDENTIFIER_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
 
-SCHEMA_MODELS: list[type[BaseModel]] = []
+
+class ExperimentAdditiveColumns(BaseModel):
+    __table_name__ = "experiments"
+    is_dirty: bool | None = None
+    result_hash: str | None = None
+    pre_mortem: str | None = None
+
+
+SCHEMA_MODELS: list[type[BaseModel]] = [ExperimentAdditiveColumns]
 
 
 class MigrationRecord(BaseModel):

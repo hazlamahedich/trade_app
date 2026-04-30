@@ -98,3 +98,22 @@
 - Golden cross variant may duplicate user's current config when fast=50/slow=200 — no dedup check against original. [remix.py:49-59]
 - generate_run_id() has no collision retry loop — 48-bit entropy at 100 entries is negligible risk. [result_store.py:31]
 - source_run_id has no server-side format validation — accepts arbitrary strings. Low risk in single-user tool. [strategies.py:169]
+
+## Deferred from: code review of 2-12-strategy-reproducibility-deterministic-run-ids.md (2026-04-30)
+
+- lru_cache on get_code_version/is_dirty_tree freezes values for process lifetime — accepted tradeoff, cache_clear in tests; defer to Epic 3 for TTL-based caching [tracker.py:112,128]
+- compute_data_fingerprint tobytes endianness not architecture-safe — works on all current targets (x86/ARM little-endian); defer [tracker.py:101]
+- 16-char run_id truncation creates collision risk at scale — 64-bit hash space accepted per spec; documented as known limitation [tracker.py:83]
+- _normalize_value doesn't handle tuples or sets — not in current use; defer [tracker.py:50-60]
+- Evicted in-memory results lose persist_warning — known limitation of 100-entry FIFO; Epic 3 replaces with DuckDB persistence [result_store.py]
+
+## Deferred from: code review round 2 of 2-12-strategy-reproducibility-deterministic-run-ids.md (2026-04-30)
+
+- store_run returns True on UNIQUE — caller can't distinguish insert vs skip; first-write-wins semantics accepted [tracker.py:223-225]
+- compute_data_fingerprint NaN bit-pattern variation across data sources; IEEE 754 NaN variants [tracker.py:128]
+- adj_close not included in data fingerprint; adj_close not used by engine [tracker.py:115]
+- TOCTOU race on duplicate detection; DB UNIQUE constraint prevents corruption [strategies.py:310-324]
+- is_dirty_tree returns True on git failure — always-dirty in prod; documented as known limitation [tracker.py:152-164]
+- get_code_version/is_dirty_tree cached for process lifetime; accepted tradeoff, cache_clear in tests [tracker.py:135,151]
+- Missing integration tests (Task 12 Level B); unit+ATDD sufficient for story; Epic 3 adds real DB verification [tests/]
+- Missing test_rerun_same_config_same_metrics Level C test; bitwise equity/trades tests cover the intent [tests/]
