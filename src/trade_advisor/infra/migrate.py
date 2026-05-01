@@ -55,6 +55,15 @@ class ExperimentAdditiveColumns(BaseModel):
     is_dirty: bool | None = None
     result_hash: str | None = None
     pre_mortem: str | None = None
+    config_json: str | None = None
+    engine_mode: str | None = None
+    source_run_id: str | None = None
+    trade_analysis_json: str | None = None
+    baseline_metrics_json: str | None = None
+    integrity_json: str | None = None
+    regime_json: str | None = None
+    is_label: str | None = None
+    sample_type: str | None = None
 
 
 SCHEMA_MODELS: list[type[BaseModel]] = [ExperimentAdditiveColumns]

@@ -109,6 +109,27 @@ CREATE TABLE IF NOT EXISTS data_sources (
     supported_intervals TEXT DEFAULT '1d,1h,5m',
     created_at          TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS result_series (
+    run_id       TEXT NOT NULL,
+    source       TEXT NOT NULL,
+    series_type  TEXT NOT NULL,
+    ts           TIMESTAMPTZ NOT NULL,
+    value        DOUBLE NOT NULL,
+    PRIMARY KEY (run_id, source, series_type, ts)
+);
+
+CREATE TABLE IF NOT EXISTS result_trades (
+    run_id       TEXT NOT NULL,
+    source       TEXT NOT NULL,
+    entry_ts     TIMESTAMPTZ NOT NULL,
+    exit_ts      TIMESTAMPTZ NOT NULL,
+    side         INTEGER NOT NULL,
+    entry_price  DOUBLE NOT NULL,
+    exit_price   DOUBLE NOT NULL,
+    return_val   DOUBLE NOT NULL,
+    weight       DOUBLE NOT NULL
+);
 """
 
 _SEED_VERSION_SQL = "INSERT INTO schema_version (version, description) VALUES (1, 'initial schema')"

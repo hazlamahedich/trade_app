@@ -285,6 +285,7 @@
 <div class="variant-chips" role="group" aria-label="Suggested parameter variants">
     {% for variant in variants %}
     <form method="POST" action="/strategies/run" class="variant-chip-form" style="display:inline" onsubmit="var btn=this.querySelector('button');btn.disabled=true;btn.querySelector('.variant-label').textContent='Running...';">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="strategy_type" value="{{ config.strategy_type | default('sma') }}">
         <input type="hidden" name="symbol" value="{{ config.symbol }}">
         <input type="hidden" name="interval" value="{{ config.interval }}">

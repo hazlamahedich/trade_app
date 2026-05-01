@@ -186,6 +186,17 @@ def compute_result_hash(equity: pd.Series, trades: pd.DataFrame) -> str:
     tr_bytes = np.asarray(numeric_cols.values).tobytes()
     return hashlib.sha256(eq_bytes + tr_bytes + all_cols_hash.encode()).hexdigest()
 
+def _json_safe(obj: Any) -> Any:
+    if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
+        return None
+    if isinstance(obj, Decimal):
+        return float(obj)
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    return obj
+
 
 class ExperimentRepository:
     @staticmethod
@@ -256,3 +267,228 @@ class ExperimentRepository:
             return len(rows) > 0
         except Exception:
             return False
+
+    @staticmethod
+    async def store_full_result(db: Any, stored: Any) -> bool:
+        comparison = stored.comparison
+        strat = comparison.strategy_result
+        baseline = comparison.buy_and_hold_result
+
+        for source, result in [("strategy", strat), ("baseline", baseline)]:
+            for stype, series in [
+                ("equity", result.equity),
+                ("returns", result.returns),
+                ("positions", result.positions),
+            ]:
+                rows = [
+                    (stored.run_id, source, stype, ts, float(val))
+                    for ts, val in series.items()
+                    if np.isfinite(float(val))
+                ]
+                if rows:
+                    await db.write(
+                        "INSERT INTO result_series (run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
+                        rows,
+                    )
+
+            trade_records = []
+            for _, t in result.trades.iterrows():
+                trade_records.append((
+                    stored.run_id, source,
+                    t["entry_ts"], t["exit_ts"],
+                    int(t["side"]), float(t["entry_price"]),
+                    float(t["exit_price"]), float(t["return"]),
+                    float(t["weight"]),
+                ))
+            if trade_records:
+                await db.write(
+                    "INSERT INTO result_trades (run_id, source, entry_ts, exit_ts, side, entry_price, exit_price, return_val, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    trade_records,
+                )
+
+        integrity_data = {
+            "is_valid": comparison.integrity.is_valid,
+            "errors": comparison.integrity.errors,
+            "warnings": comparison.integrity.warnings,
+            "should_halt_display": comparison.integrity.should_halt_display,
+        }
+        regime_data = None
+        if comparison.regime is not None:
+            regime_data = {k: series.tolist() for k, series in comparison.regime.labels.items()}
+
+        ta = stored.trade_analysis
+        trade_analysis_data = {
+            "avg_holding_period": ta.avg_holding_period,
+            "avg_mfe": str(ta.avg_mfe),
+            "avg_mae": str(ta.avg_mae),
+        }
+
+        baseline_metrics_data = {
+            k: getattr(comparison.buy_and_hold_metrics, k)
+            for k in [
+                "total_return", "cagr", "sharpe", "sortino", "calmar",
+                "max_drawdown", "alpha", "beta", "information_ratio",
+            ]
+        }
+
+        await db.write(
+            """UPDATE experiments SET
+                config_json = ?, engine_mode = ?, source_run_id = ?,
+                trade_analysis_json = ?, baseline_metrics_json = ?,
+                integrity_json = ?, regime_json = ?,
+                is_label = ?, sample_type = ?, status = 'completed',
+                completed_at = ?
+            WHERE run_id = ?""",
+            (
+                json.dumps(stored.config_dict, default=str),
+                stored.engine_mode,
+                stored.source_run_id,
+                json.dumps(trade_analysis_data),
+                json.dumps(baseline_metrics_data, default=_json_safe),
+                json.dumps(integrity_data),
+                json.dumps(regime_data, default=_json_safe) if regime_data else None,
+                comparison.is_label,
+                comparison.sample_type,
+                datetime.now(UTC),
+                stored.run_id,
+            ),
+        )
+        log.info("ta:experiment:full_result_stored run_id=%s", stored.run_id)
+        return True
+
+    @staticmethod
+    async def load_full_result(db: Any, run_id: str) -> Any | None:
+        from trade_advisor.backtest.baseline import BaselineComparison
+        from trade_advisor.backtest.engine import BacktestResult
+        from trade_advisor.backtest.integrity import IntegrityResult
+        from trade_advisor.backtest.metrics.trade_analysis import TradeAnalysis
+        from trade_advisor.web.services.result_store import StoredResult
+
+        record = await ExperimentRepository.get_run(db, run_id)
+        if record is None:
+            return None
+
+        rows = await db.read(
+            "SELECT source, series_type, ts, value FROM result_series WHERE run_id = ? ORDER BY source, series_type, ts",
+            (run_id,),
+        )
+        if not rows:
+            return None
+
+        series_map: dict[tuple[str, str], list[tuple[Any, ...]]] = {}
+        for source, stype, ts, val in rows:
+            key = (source, stype)
+            series_map.setdefault(key, []).append((ts, val))
+
+        def _to_series(key: tuple[str, str]) -> pd.Series:
+            data = series_map.get(key, [])
+            if not data:
+                return pd.Series(dtype=float)
+            idx = pd.DatetimeIndex([ts for ts, _ in data])
+            vals = [val for _, val in data]
+            return pd.Series(vals, index=idx, dtype=float)
+
+        async def _build_result(source: str) -> BacktestResult:
+            equity = _to_series((source, "equity"))
+            returns = _to_series((source, "returns"))
+            positions = _to_series((source, "positions"))
+
+            trade_rows = await db.read(
+                "SELECT entry_ts, exit_ts, side, entry_price, exit_price, return_val, weight FROM result_trades WHERE run_id = ? AND source = ?",
+                (run_id, source),
+            )
+            if trade_rows:
+                trades = pd.DataFrame(
+                    trade_rows,
+                    columns=["entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return", "weight"],
+                )
+            else:
+                trades = pd.DataFrame(
+                    columns=["entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return", "weight"],
+                )
+
+            return BacktestResult(
+                equity=equity,
+                returns=returns,
+                positions=positions,
+                trades=trades,
+                config=record,  # type: ignore[arg-type]
+                meta={},
+            )
+
+        strat_result = await _build_result("strategy")
+        baseline_result = await _build_result("baseline")
+
+        from trade_advisor.backtest.metrics.performance import compute_performance_metrics
+        strategy_metrics = compute_performance_metrics(strat_result)
+        buy_hold_metrics = compute_performance_metrics(baseline_result)
+
+        integrity_data: dict[str, Any] = {}
+        integrity_rows = await db.read(
+            "SELECT integrity_json FROM experiments WHERE run_id = ?",
+            (run_id,),
+        )
+        if integrity_rows and integrity_rows[0][0]:
+            integrity_data = json.loads(integrity_rows[0][0])
+
+        integrity = IntegrityResult(
+            is_valid=integrity_data.get("is_valid", True),
+            errors=integrity_data.get("errors", []),
+            warnings=integrity_data.get("warnings", []),
+            should_halt_display=integrity_data.get("should_halt_display", False),
+        )
+
+        meta_rows = await db.read(
+            "SELECT config_json, engine_mode, source_run_id, is_label, sample_type, pre_mortem, trade_analysis_json FROM experiments WHERE run_id = ?",
+            (run_id,),
+        )
+        config_dict: dict[str, Any] = {}
+        engine_mode = "vectorized"
+        source_run_id = None
+        is_label = "In-Sample Only — not validated for live trading"
+        sample_type = "in_sample"
+        pre_mortem = None
+        ta_data: dict[str, Any] = {}
+
+        if meta_rows:
+            row = meta_rows[0]
+            if row[0]:
+                config_dict = json.loads(row[0])
+            engine_mode = row[1] or "vectorized"
+            source_run_id = row[2]
+            is_label = row[3] or is_label
+            sample_type = row[4] or sample_type
+            pre_mortem = row[5]
+            if row[6]:
+                ta_data = json.loads(row[6])
+
+        trade_analysis = TradeAnalysis(
+            avg_holding_period=ta_data.get("avg_holding_period", 0.0),
+            avg_mfe=Decimal(ta_data.get("avg_mfe", "0")),
+            avg_mae=Decimal(ta_data.get("avg_mae", "0")),
+            entry_return_dist=pd.Series(dtype=float),
+            exit_return_dist=pd.Series(dtype=float),
+        )
+
+        comparison = BaselineComparison(
+            strategy_result=strat_result,
+            buy_and_hold_result=baseline_result,
+            strategy_metrics=strategy_metrics,
+            buy_and_hold_metrics=buy_hold_metrics,
+            integrity=integrity,
+            is_label=is_label,
+            sample_type=sample_type,
+        )
+
+        created_at = record.created_at or datetime.now(UTC)
+
+        return StoredResult(
+            comparison=comparison,
+            trade_analysis=trade_analysis,
+            config_dict=config_dict,
+            run_id=run_id,
+            created_at=created_at,
+            engine_mode=engine_mode,
+            source_run_id=source_run_id,
+            pre_mortem=pre_mortem,
+        )

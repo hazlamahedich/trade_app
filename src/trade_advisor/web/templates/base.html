@@ -6,6 +6,7 @@
     <title>{% block title %}Quant Trade Advisor{% endblock %}</title>
     <link rel="stylesheet" href="/static/styles.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <meta name="csrf-token" content="{{ csrf_token }}">
     <style>
         :root {
             --healthy: #22c55e;
@@ -257,5 +258,11 @@
          hx-disable on Preact subtrees prevents HTMX from touching Preact-managed DOM.
          Preact→HTMX: dispatch custom "ta:action" events; HTMX listens via hx-trigger="ta:action from:body". -->
     <script type="module" src="/static/bridge.js"></script>
+    <script>
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            var token = document.querySelector('meta[name="csrf-token"]');
+            if (token) { evt.detail.headers['x-csrf-token'] = token.content; }
+        });
+    </script>
 </body>
 </html>

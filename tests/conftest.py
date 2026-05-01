@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 import pytest
 import structlog
@@ -46,3 +48,41 @@ def fake_fetcher():
         return df.reset_index(drop=True)
 
     return _f
+
+
+@pytest.fixture(autouse=True)
+def _inject_csrf_support(monkeypatch: pytest.MonkeyPatch):
+    import httpx
+
+    from trade_advisor.web.csrf import CSRF_COOKIE, CSRF_HEADER
+
+    def _add_csrf_header(client: httpx.AsyncClient, kwargs: dict[str, Any]) -> dict[str, Any]:
+        csrf_token = client.cookies.get(CSRF_COOKIE)
+        if csrf_token is None:
+            return kwargs
+        headers: dict[str, str] = dict(kwargs.get("headers") or {})
+        headers[CSRF_HEADER] = csrf_token
+        return {**kwargs, "headers": headers}
+
+    _orig_post = httpx.AsyncClient.post
+    _orig_delete = httpx.AsyncClient.delete
+    _orig_put = httpx.AsyncClient.put
+    _orig_patch = httpx.AsyncClient.patch
+
+    async def _csrf_post(client: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        return await _orig_post(client, url, **_add_csrf_header(client, kwargs))
+
+    async def _csrf_delete(client: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        return await _orig_delete(client, url, **_add_csrf_header(client, kwargs))
+
+    async def _csrf_put(client: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        return await _orig_put(client, url, **_add_csrf_header(client, kwargs))
+
+    async def _csrf_patch(client: httpx.AsyncClient, url: str, **kwargs: Any) -> httpx.Response:
+        return await _orig_patch(client, url, **_add_csrf_header(client, kwargs))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _csrf_post)
+    monkeypatch.setattr(httpx.AsyncClient, "delete", _csrf_delete)
+    monkeypatch.setattr(httpx.AsyncClient, "put", _csrf_put)
+    monkeypatch.setattr(httpx.AsyncClient, "patch", _csrf_patch)
+    yield

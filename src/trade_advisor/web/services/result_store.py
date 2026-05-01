@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from trade_advisor.backtest.baseline import BaselineComparison
 from trade_advisor.backtest.metrics.trade_analysis import TradeAnalysis
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -30,6 +34,10 @@ class InMemoryResultStore:
     def __init__(self) -> None:
         self._store: dict[str, StoredResult] = {}
         self._lock = asyncio.Lock()
+        self._db: Any = None
+
+    def set_db(self, db: Any) -> None:
+        self._db = db
 
     def generate_run_id(self) -> str:
         return uuid.uuid4().hex[:12]
@@ -41,16 +49,41 @@ class InMemoryResultStore:
                 del self._store[oldest_key]
             self._store[result.run_id] = result
 
+        if self._db is not None:
+            try:
+                from trade_advisor.experiments.tracker import ExperimentRepository
+
+                await ExperimentRepository.store_full_result(self._db, result)
+            except Exception as exc:
+                log.warning("ta:store:duckdb_persist_failed run_id=%s: %s", result.run_id, exc)
+                result.persist_warning = True
+
     async def get(self, run_id: str) -> StoredResult | None:
         async with self._lock:
-            return self._store.get(run_id)
+            cached = self._store.get(run_id)
+            if cached is not None:
+                return cached
+
+        if self._db is not None:
+            try:
+                from trade_advisor.experiments.tracker import ExperimentRepository
+
+                result: StoredResult | None = await ExperimentRepository.load_full_result(self._db, run_id)
+                if result is not None:
+                    async with self._lock:
+                        self._store[run_id] = result
+                    return result
+            except Exception as exc:
+                log.warning("ta:store:duckdb_load_failed run_id=%s: %s", run_id, exc)
+
+        return None
 
     async def delete(self, run_id: str) -> bool:
         async with self._lock:
             if run_id in self._store:
                 del self._store[run_id]
                 return True
-            return False
+        return False
 
 
 _store = InMemoryResultStore()

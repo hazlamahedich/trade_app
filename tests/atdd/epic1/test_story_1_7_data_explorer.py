@@ -176,6 +176,7 @@ class TestFirstLaunchStateMachine:
         assert "SPY" in response.text
         assert "Fetch" in response.text or "fetch" in response.text.lower()
 
+    @pytest.mark.integration
     async def test_fetch_shows_error_state_on_failure(self, async_client_empty):
         response = await async_client_empty.post(
             "/data/fetch",

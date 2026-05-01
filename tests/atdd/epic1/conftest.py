@@ -123,6 +123,7 @@ async def _create_client_with_data(*dfs: pd.DataFrame):
 
             transport = ASGITransport(app=app)
             async with AsyncClient(transport=transport, base_url="http://test") as client:
+                await client.get("/health")
                 yield client
         finally:
             app.state.db = original_db

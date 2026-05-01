@@ -3,14 +3,28 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, pass_context
 
 from trade_advisor.core.config import DatabaseConfig
 from trade_advisor.infra.db import DatabaseManager
+from trade_advisor.web.csrf import CSRFMiddleware
+
+
+@pass_context
+def _csrf_token(context: dict[str, Any]) -> str:
+    request: Any = context.get("request")
+    if request is not None:
+        token: Any = getattr(request.state, "_csrf_token", None)
+        if token is not None:
+            return str(token)
+        cookie_val: Any = request.cookies.get("csrf_token", "")
+        return str(cookie_val)
+    return ""
 
 
 def _web_dir() -> Path:
@@ -28,12 +42,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Quant Trade Advisor", version="0.1.0", lifespan=lifespan)
 
+app.add_middleware(
+    CSRFMiddleware,
+    secret_key="ta-dev-csrf-secret-change-in-production",
+    cookie_secure=False,
+    cookie_samesite="Lax",
+)
+
 _templates_dir = _web_dir() / "templates"
 _env = Environment(
     loader=FileSystemLoader(str(_templates_dir)),
     autoescape=True,
     cache_size=0,
 )
+_env.globals["csrf_token"] = _csrf_token
 _templates = Jinja2Templates(env=_env)
 
 _static_dir = _web_dir() / "static"
