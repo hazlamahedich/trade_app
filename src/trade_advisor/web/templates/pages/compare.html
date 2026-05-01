@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Experiments — Quant Trade Advisor{% endblock %}
+
+{% block content %}
+{% if error_message %}
+<div class="error-state" role="alert" style="padding:2rem;text-align:center;">
+    <h2 style="color:var(--degraded);">Comparison Error</h2>
+    <p>{{ error_message }}</p>
+    {% if run_a or run_b %}
+    <a href="/experiments" style="color:var(--informational);">Try another run</a>
+    {% endif %}
+</div>
+{% elif diff %}
+<div style="margin-bottom:1rem;display:flex;align-items:center;gap:1rem;">
+    <h2 style="margin:0;">Compare Experiments</h2>
+    <a href="/experiments" style="font-size:0.85rem;color:var(--text-secondary);">&larr; Back to list</a>
+</div>
+
+{% if diff.compatibility_warning %}
+<div role="alert" style="padding:0.75rem 1rem;margin-bottom:1rem;background:var(--caution-warm);border-left:3px solid var(--caution);border-radius:var(--radius);font-size:0.9rem;">
+    <strong>&#9888; Compatibility Warning:</strong> {{ diff.compatibility_warning }}
+</div>
+{% endif %}
+
+<div style="display:flex;gap:0;min-height:400px;border:1px solid var(--border-color);border-radius:var(--radius);overflow:hidden;">
+    <div role="region" aria-label="Baseline experiment" style="flex:1;padding:1.5rem;overflow-y:auto;" class="hx-indicator">
+        <h3 style="margin-top:0;color:var(--text-secondary);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;">Baseline</h3>
+        <p class="data-font" style="font-size:0.85rem;margin-bottom:1rem;">{{ diff.baseline_id }}</p>
+
+        {% if "metrics" in diff.missing_sections %}
+        <div class="card" style="background:var(--bg-secondary);text-align:center;padding:2rem;">
+            <p style="color:var(--text-secondary);margin:0;">No metrics data available for this run</p>
+        </div>
+        {% elif diff.metrics_diff %}
+        <div class="card" style="margin-bottom:1rem;">
+            <h4 style="margin-top:0;font-size:0.8rem;color:var(--text-secondary);">Metrics</h4>
+            <table style="font-size:0.85rem;width:100%;">
+                {% for name, change in diff.metrics_diff.items() %}
+                <tr>
+                    <td style="font-weight:600;">{{ name }}</td>
+                    <td class="tabular-nums data-font">{{ '%.4f' | format(change.value_a) if change.value_a is not none else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        {% if "config" in diff.missing_sections %}
+        <div class="card" style="background:var(--bg-secondary);text-align:center;padding:2rem;">
+            <p style="color:var(--text-secondary);margin:0;">No config data available for this run</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="width:2px;background:var(--border-color);cursor:col-resize;position:relative;flex-shrink:0;" aria-hidden="true">
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;gap:2px;">
+            <span style="width:3px;height:3px;border-radius:50%;background:var(--text-secondary);"></span>
+            <span style="width:3px;height:3px;border-radius:50%;background:var(--text-secondary);"></span>
+            <span style="width:3px;height:3px;border-radius:50%;background:var(--text-secondary);"></span>
+        </div>
+    </div>
+
+    <div role="region" aria-label="Challenger experiment" style="flex:1;padding:1.5rem;overflow-y:auto;" class="hx-indicator">
+        <h3 style="margin-top:0;font-weight:700;font-size:0.85rem;text-transform:uppercase;letter-spacing:0.05em;">Challenger</h3>
+        <p class="data-font" style="font-size:0.85rem;margin-bottom:1rem;">{{ diff.challenger_id }}</p>
+
+        {% if "metrics" in diff.missing_sections %}
+        <div class="card" style="background:var(--bg-secondary);text-align:center;padding:2rem;">
+            <p style="color:var(--text-secondary);margin:0;">No metrics data available for this run</p>
+        </div>
+        {% elif diff.metrics_diff %}
+        <div class="card" style="margin-bottom:1rem;">
+            <h4 style="margin-top:0;font-size:0.8rem;color:var(--text-secondary);">Metrics</h4>
+            <table style="font-size:0.85rem;width:100%;">
+                {% for name, change in diff.metrics_diff.items() %}
+                <tr>
+                    <td style="font-weight:600;">{{ name }}</td>
+                    <td class="tabular-nums data-font">{{ '%.4f' | format(change.value_b) if change.value_b is not none else '—' }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+        {% endif %}
+
+        {% if "config" in diff.missing_sections %}
+        <div class="card" style="background:var(--bg-secondary);text-align:center;padding:2rem;">
+            <p style="color:var(--text-secondary);margin:0;">No config data available for this run</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if diff.metrics_diff %}
+<div class="card" style="margin-top:1.5rem;">
+    <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Metric Comparison</h3>
+    <table style="font-size:0.85rem;width:100%;">
+        <thead>
+            <tr>
+                <th style="text-align:left;">Metric</th>
+                <th style="text-align:right;">Baseline</th>
+                <th style="text-align:right;">Challenger</th>
+                <th style="text-align:right;">Delta</th>
+                <th style="text-align:center;">Direction</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for name, change in diff.metrics_diff.items() %}
+            <tr>
+                <td style="font-weight:600;">{{ name }}</td>
+                <td class="tabular-nums data-font" style="text-align:right;">{{ '%.4f' | format(change.value_a) if change.value_a is not none else '—' }}</td>
+                <td class="tabular-nums data-font" style="text-align:right;">{{ '%.4f' | format(change.value_b) if change.value_b is not none else '—' }}</td>
+                <td class="tabular-nums data-font" style="text-align:right;">{{ '%+.4f' | format(change.delta) if change.delta is not none else '—' }}</td>
+                <td style="text-align:center;" aria-label="{{ name }} {{ change.label | lower }}{% if change.delta is not none %} by {{ '%.4f' | format(change.delta | abs) }}{% endif %}">
+                    <span style="color:var(--{{ 'healthy' if change.direction == 'improvement' else 'degraded' if change.direction == 'degradation' else 'text-secondary' }});">
+                        {{ change.icon }} {{ change.label }}
+                    </span>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if diff.parameter_diff and diff.parameter_diff | length > 0 %}
+<div class="card" style="margin-top:1rem;">
+    <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Parameter Changes</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+        {% for pc in diff.parameter_diff %}
+        <span style="font-size:0.8rem;background:var(--bg-secondary);padding:0.25rem 0.75rem;border-radius:4px;">
+            <strong>{{ pc.field }}</strong>: {{ pc.old_value | tojson }} &rarr; {{ pc.new_value | tojson }}
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

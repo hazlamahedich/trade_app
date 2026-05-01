@@ -182,6 +182,65 @@ async def api_experiment_list(request: Request) -> Any:
     return JSONResponse(result)
 
 
+@api_router.get("/compare")
+async def api_experiment_compare(request: Request) -> Any:
+    from trade_advisor.main import get_db
+
+    db = await get_db(request)
+    qp = request.query_params
+    run_a = qp.get("run_a", "").strip()
+    run_b = qp.get("run_b", "").strip()
+
+    if not run_a or not run_b:
+        return JSONResponse({"error": "Missing run_a or run_b parameters"}, status_code=400)
+
+    try:
+        from trade_advisor.experiments.compare import compare_runs
+
+        diff = compare_runs(db, run_a, run_b)
+        return JSONResponse(diff.model_dump(mode="json"))
+    except ValueError as exc:
+        msg = str(exc)
+        run_id = run_b if "run_a" not in msg else run_a
+        return JSONResponse({"error": "Run not found", "run_id": run_id}, status_code=404)
+    except Exception as exc:
+        log.warning("ta:experiments:compare_failed: %s", exc)
+        return JSONResponse({"error": "Unable to compare runs."}, status_code=500)
+
+
+@router.get("/compare")
+async def experiment_compare_page(request: Request) -> Any:
+    from trade_advisor.main import get_db, get_templates
+
+    templates = get_templates()
+    db = await get_db(request)
+    qp = request.query_params
+    run_a = qp.get("run_a", "").strip()
+    run_b = qp.get("run_b", "").strip()
+
+    if not run_a or not run_b:
+        ctx: dict[str, Any] = {"error_message": "Missing run_a or run_b parameters"}
+        return templates.TemplateResponse(request, "pages/compare.html", ctx, status_code=400)
+
+    try:
+        from trade_advisor.experiments.compare import compare_runs
+
+        diff = compare_runs(db, run_a, run_b)
+        ctx = {
+            "diff": diff,
+            "run_a": run_a,
+            "run_b": run_b,
+        }
+        return templates.TemplateResponse(request, "pages/compare.html", ctx)
+    except ValueError:
+        ctx = {"error_message": "Run not found. Try another run.", "run_a": run_a, "run_b": run_b}
+        return templates.TemplateResponse(request, "pages/compare.html", ctx, status_code=404)
+    except Exception as exc:
+        log.warning("ta:experiments:compare_page_failed: %s", exc)
+        ctx = {"error_message": "Unable to compare runs. Please try again."}
+        return templates.TemplateResponse(request, "pages/compare.html", ctx, status_code=500)
+
+
 @api_router.get("/{run_id}/lineage")
 async def api_experiment_lineage(request: Request, run_id: str) -> Any:
     from trade_advisor.main import get_db
@@ -311,6 +370,15 @@ async def experiment_detail(request: Request, run_id: str) -> Any:
             "run_id": run_id,
             "has_result": result is not None,
         }
+
+        try:
+            other_rows = db._execute_read(
+                "SELECT run_id, strategy FROM experiments WHERE run_id != ? ORDER BY created_at DESC LIMIT 5",
+                (run_id,),
+            )
+            ctx["other_runs"] = [{"run_id": r[0], "strategy": r[1]} for r in other_rows]
+        except Exception:
+            ctx["other_runs"] = []
 
         try:
             from trade_advisor.experiments.lineage import get_lineage as _get_lineage

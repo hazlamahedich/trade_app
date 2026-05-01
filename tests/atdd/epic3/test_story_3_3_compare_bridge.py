@@ -1,8 +1,4 @@
-"""ATDD: Story 3.3 — CompareBridge Split-Panel.
-
-Red-phase scaffolds. Tests assert the EXPECTED end-state for Story 3.3.
-All tests are marked pytest.mark.skip until the feature is implemented.
-"""
+"""ATDD: Story 3.3 — CompareBridge Split-Panel."""
 
 from __future__ import annotations
 
@@ -14,7 +10,6 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-001")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     def test_compare_two_runs_returns_metrics_diff(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_runs
 
@@ -27,10 +22,7 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-002")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
-    def test_metrics_diff_highlights_improvement_and_degradation(
-        self, db_with_experiments
-    ):
+    def test_metrics_diff_highlights_improvement_and_degradation(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_runs
 
         run_a = db_with_experiments._known_run_ids[0]
@@ -42,14 +34,11 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-003")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
-    def test_parameter_text_diff_with_semantic_highlighting(
-        self, db_with_experiments
-    ):
+    def test_parameter_text_diff_with_semantic_highlighting(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_runs
 
         run_a = db_with_experiments._known_run_ids[0]
-        run_b = db_with_experiments._known_run_ids[1]
+        run_b = db_with_experiments._known_run_ids[2]
         diff = compare_runs(db_with_experiments, run_a, run_b)
         assert diff.parameter_diff is not None
         assert len(diff.parameter_diff) > 0
@@ -60,10 +49,7 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-004")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
-    def test_apples_to_oranges_guard_for_incompatible_strategies(
-        self, db_with_experiments
-    ):
+    def test_apples_to_oranges_guard_for_incompatible_strategies(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_runs
 
         run_a = db_with_experiments._known_run_ids[0]
@@ -74,7 +60,6 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-005")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     def test_trade_list_synced_scrolling_alignment(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_trades
 
@@ -87,7 +72,6 @@ class TestStory33CompareBridge:
 
     @pytest.mark.test_id("3.3-ATDD-006")
     @pytest.mark.p2
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     def test_mvp_scope_is_text_diff_only(self, db_with_experiments):
         from trade_advisor.experiments.compare import compare_runs
 
@@ -102,13 +86,10 @@ class TestStory33CompareBridgeWebAPI:
 
     @pytest.mark.test_id("3.3-ATDD-007")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     async def test_compare_api_returns_diff(self, app_client, db_with_experiments):
         run_a = db_with_experiments._known_run_ids[0]
         run_b = db_with_experiments._known_run_ids[1]
-        response = await app_client.get(
-            f"/api/experiments/compare?run_a={run_a}&run_b={run_b}"
-        )
+        response = await app_client.get(f"/api/experiments/compare?run_a={run_a}&run_b={run_b}")
         assert response.status_code == 200
         data = response.json()
         assert "metrics_diff" in data
@@ -116,23 +97,17 @@ class TestStory33CompareBridgeWebAPI:
 
     @pytest.mark.test_id("3.3-ATDD-008")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     async def test_compare_api_404_for_missing_run(self, app_client, db_with_experiments):
         run_a = db_with_experiments._known_run_ids[0]
-        response = await app_client.get(
-            f"/api/experiments/compare?run_a={run_a}&run_b=nonexistent"
-        )
+        response = await app_client.get(f"/api/experiments/compare?run_a={run_a}&run_b=nonexistent")
         assert response.status_code == 404
 
     @pytest.mark.test_id("3.3-ATDD-009")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.3 not implemented")
     async def test_compare_page_renders_split_panel(self, app_client, db_with_experiments):
         run_a = db_with_experiments._known_run_ids[0]
         run_b = db_with_experiments._known_run_ids[1]
-        response = await app_client.get(
-            f"/experiments/compare?run_a={run_a}&run_b={run_b}"
-        )
+        response = await app_client.get(f"/experiments/compare?run_a={run_a}&run_b={run_b}")
         assert response.status_code == 200
         html = response.text
         assert "compare" in html.lower()

@@ -11,6 +11,7 @@
         <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
             <h2 style="margin:0;">Experiment Detail</h2>
             <span class="badge badge-{{ 'healthy' if record.status == 'completed' else 'degraded' if record.status == 'failed' else 'caution' }}">{{ record.status }}</span>
+            <a href="/experiments" style="font-size:0.85rem;color:var(--text-secondary);margin-left:auto;">&larr; All experiments</a>
         </div>
 
         <div class="card">
@@ -24,6 +25,14 @@
                 {% if record.git_commit %}<tr><td style="font-weight:600;">Git Commit</td><td class="data-font" style="font-size:0.8rem;">{{ record.git_commit[:12] }}</td></tr>{% endif %}
                 {% if record.parent_run_id %}<tr><td style="font-weight:600;">Forked From</td><td><a href="/experiments/{{ record.parent_run_id }}" style="color:var(--informational);">{{ record.parent_run_id[:12] }}</a></td></tr>{% endif %}
             </table>
+            {% if other_runs %}
+            <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.5rem;">
+                <span style="font-size:0.85rem;color:var(--text-secondary);">Compare with:</span>
+                {% for other in other_runs[:5] %}
+                <a href="/experiments/compare?run_a={{ record.run_id }}&run_b={{ other.run_id }}" style="font-size:0.8rem;color:var(--informational);text-decoration:none;padding:0.25rem 0.5rem;border:1px solid var(--border-color);border-radius:var(--radius);" title="{{ other.run_id }}">{{ other.run_id[:12] }} ({{ other.strategy }})</a>
+                {% endfor %}
+            </div>
+            {% endif %}
         </div>
 
         {% if metrics %}

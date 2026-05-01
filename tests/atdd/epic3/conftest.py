@@ -139,7 +139,25 @@ async def db_with_experiments():
             ),
         )
 
+        await db.write(
+            "UPDATE experiments SET config_json = ? WHERE run_id = ?",
+            (
+                json.dumps(
+                    {"strategy_type": "mean_revert", "symbol": "SPY", "fast": 10, "slow": 30}
+                ),
+                "run_atdd_002",
+            ),
+        )
+        await db.write(
+            "UPDATE experiments SET config_json = ? WHERE run_id = ?",
+            (
+                json.dumps({"strategy_type": "sma", "symbol": "SPY", "fast": 14, "slow": 50}),
+                "run_atdd_003",
+            ),
+        )
+
         db._known_run_ids = ["run_atdd_001", "run_atdd_002", "run_atdd_003"]
+        db._cross_strategy_run_id = "run_atdd_002"
         yield db
 
 
