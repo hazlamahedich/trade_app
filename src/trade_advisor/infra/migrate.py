@@ -55,6 +55,7 @@ class ExperimentAdditiveColumns(BaseModel):
     is_dirty: bool | None = None
     result_hash: str | None = None
     pre_mortem: str | None = None
+    narrative: str | None = None
     config_json: str | None = None
     engine_mode: str | None = None
     source_run_id: str | None = None

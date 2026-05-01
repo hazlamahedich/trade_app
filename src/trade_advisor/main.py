@@ -86,6 +86,12 @@ from trade_advisor.web.routes.backtests import router as backtests_router  # noq
 
 app.include_router(backtests_router)
 
+from trade_advisor.web.routes.experiments import api_router as experiments_api_router  # noqa: E402
+from trade_advisor.web.routes.experiments import router as experiments_router  # noqa: E402
+
+app.include_router(experiments_router)
+app.include_router(experiments_api_router)
+
 
 @app.get("/health")
 async def health() -> dict[str, str]:

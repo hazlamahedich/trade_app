@@ -1,0 +1,19 @@
+{% for run in runs %}
+<tr>
+    <td class="tabular-nums">{{ run.created_at.strftime('%Y-%m-%d %H:%M') if run.created_at else '—' }}</td>
+    <td>{{ run.strategy }}</td>
+    <td class="tabular-nums data-font">{{ run.sharpe_display }}</td>
+    <td class="tabular-nums data-font">{{ run.return_display }}</td>
+    <td class="tabular-nums data-font">{{ run.dd_display }}</td>
+    <td>
+        {% if run.status == 'completed' %}
+        <span class="badge badge-healthy">completed</span>
+        {% elif run.status == 'failed' %}
+        <span class="badge badge-degraded">failed</span>
+        {% elif run.status == 'running' %}
+        <span class="badge badge-caution">running</span>
+        {% endif %}
+    </td>
+    <td><a href="/experiments/{{ run.run_id }}" style="color:var(--informational);text-decoration:none;font-family:var(--font-data);font-size:0.85rem;">{{ run.run_id[:12] }}</a></td>
+</tr>
+{% endfor %}

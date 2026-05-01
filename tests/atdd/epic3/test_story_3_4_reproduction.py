@@ -6,6 +6,7 @@ All tests are marked pytest.mark.skip until the feature is implemented.
 
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 
 
@@ -82,7 +83,7 @@ class TestStory34RunReproduction:
     @pytest.mark.p1
     @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_preserves_deterministic_run_id(self, db_with_completed_run):
-        from trade_advisor.experiments.tracker import generate_run_id, HashedRunInputs
+        from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
         original_run_id = db_with_completed_run._run_id
         config = db_with_completed_run._config
@@ -100,7 +101,7 @@ class TestStory34RunReproduction:
     def test_reproduce_unknown_run_raises(self, db_with_completed_run):
         from trade_advisor.experiments.reproduction import load_run_for_reproduction
 
-        with pytest.raises(Exception):
+        with pytest.raises((ValueError, RuntimeError)):
             load_run_for_reproduction(db_with_completed_run, "nonexistent_run")
 
     @pytest.mark.test_id("3.4-ATDD-008")

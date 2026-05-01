@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Experiment {{ run_id }} — Quant Trade Advisor{% endblock %}
+
+{% block content %}
+{% if error_message %}
+<div class="error-state">{{ error_message }}</div>
+{% elif record %}
+<div style="display:flex;gap:1.5rem;flex-wrap:wrap;">
+    <div style="flex:2;min-width:600px;">
+        <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+            <h2 style="margin:0;">Experiment Detail</h2>
+            <span class="badge badge-{{ 'healthy' if record.status == 'completed' else 'degraded' if record.status == 'failed' else 'caution' }}">{{ record.status }}</span>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Configuration</h3>
+            <table style="font-size:0.85rem;">
+                <tr><td style="font-weight:600;width:150px;">Run ID</td><td class="data-font">{{ record.run_id }}</td></tr>
+                <tr><td style="font-weight:600;">Strategy</td><td>{{ record.strategy }}</td></tr>
+                <tr><td style="font-weight:600;">Config Hash</td><td class="data-font" style="font-size:0.8rem;">{{ record.config_hash[:16] }}...</td></tr>
+                <tr><td style="font-weight:600;">Seed</td><td class="data-font">{{ record.seed }}</td></tr>
+                <tr><td style="font-weight:600;">Created</td><td>{{ record.created_at.strftime('%Y-%m-%d %H:%M UTC') if record.created_at else '—' }}</td></tr>
+                {% if record.git_commit %}<tr><td style="font-weight:600;">Git Commit</td><td class="data-font" style="font-size:0.8rem;">{{ record.git_commit[:12] }}</td></tr>{% endif %}
+                {% if record.parent_run_id %}<tr><td style="font-weight:600;">Forked From</td><td><a href="/experiments/{{ record.parent_run_id }}" style="color:var(--informational);">{{ record.parent_run_id[:12] }}</a></td></tr>{% endif %}
+            </table>
+        </div>
+
+        {% if metrics %}
+        <div class="card">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Strategy Metrics</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;">
+                {% for key, value in metrics.items() %}
+                <div style="text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-secondary);">{{ key }}</div>
+                    <div class="tabular-nums data-font" style="font-size:1.1rem;font-weight:600;">
+                        {% if value is number %}
+                            {{ '%.4f' | format(value) if value | abs < 100 else '%+.1f%%' | format(value * 100) if key in ['total_return', 'cagr', 'max_drawdown', 'alpha'] else '%.2f' | format(value) }}
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if baseline_metrics %}
+        <div class="card" style="background:var(--bg-secondary);">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Buy-and-Hold Baseline</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:0.75rem;">
+                <div style="text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-secondary);">Total Return</div>
+                    <div class="tabular-nums data-font" style="font-size:1.1rem;">{{ '%+.1f%%' | format(baseline_metrics.get('total_return', 0) * 100) }}</div>
+                </div>
+                <div style="text-align:center;">
+                    <div style="font-size:0.75rem;color:var(--text-secondary);">Sharpe</div>
+                    <div class="tabular-nums data-font" style="font-size:1.1rem;">{{ '%.2f' | format(baseline_metrics.get('sharpe', 0)) }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if has_result and equity_props.strategy_equity %}
+        <div class="card">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Equity Curve</h3>
+            <div id="equity-chart" data-equity-props='{{ equity_props | tojson }}' style="width:100%;height:300px;"></div>
+        </div>
+        {% endif %}
+
+        {% if trade_count > 0 %}
+        <div class="card">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Trades ({{ trade_count }})</h3>
+            <div style="max-height:400px;overflow-y:auto;">
+                <table>
+                    <thead><tr><th>Entry</th><th>Exit</th><th>Side</th><th>Return</th></tr></thead>
+                    <tbody>
+                        {% for trade in trades[:50] %}
+                        <tr>
+                            <td class="data-font" style="font-size:0.8rem;">{{ trade.get('entry_ts', '—') }}</td>
+                            <td class="data-font" style="font-size:0.8rem;">{{ trade.get('exit_ts', '—') }}</td>
+                            <td>{{ 'Long' if trade.get('side', 0) == 1 else 'Short' }}</td>
+                            <td class="tabular-nums data-font">{{ '%+.2f%%' | format(trade.get('return', 0) * 100) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if trade_count > 50 %}<p style="font-size:0.8rem;color:var(--text-secondary);">Showing 50 of {{ trade_count }} trades.</p>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div style="flex:1;min-width:280px;">
+        {% if narrative %}
+        <div class="card">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Narrative</h3>
+            <p style="font-size:0.9rem;line-height:1.5;">{{ narrative }}</p>
+        </div>
+        {% endif %}
+
+        {% if record.pre_mortem %}
+        <div class="card" style="border-left:3px solid var(--caution);">
+            <h3 style="margin-top:0;font-size:0.9rem;color:var(--caution);">Pre-Mortem</h3>
+            <p style="font-size:0.9rem;">{{ record.pre_mortem }}</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Experiments — Quant Trade Advisor{% endblock %}
+
+{% block content %}
+<div style="display:flex;gap:1.5rem;">
+    <aside style="min-width:200px;">
+        <h3 style="margin-top:0;font-size:0.95rem;color:var(--text-secondary);">Filters</h3>
+        <div id="filter-controls"
+             data-island="experiment-filters"
+             data-island-status="pending">
+            <form id="experiment-filters-form" hx-get="/experiments" hx-target="#experiment-table-body" hx-swap="innerHTML">
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.25rem;">Strategy</label>
+                    <select name="strategy" style="width:100%;padding:0.4rem;border:1px solid var(--border-color);border-radius:var(--radius);font-size:0.85rem;">
+                        <option value="">All</option>
+                        <option value="SmaCross" {% if request.query_params.get('strategy') == 'SmaCross' %}selected{% endif %}>SmaCross</option>
+                        <option value="MeanRevert" {% if request.query_params.get('strategy') == 'MeanRevert' %}selected{% endif %}>MeanRevert</option>
+                    </select>
+                </div>
+                <div style="margin-bottom:1rem;">
+                    <label style="display:block;font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:0.25rem;">Status</label>
+                    <select name="status" style="width:100%;padding:0.4rem;border:1px solid var(--border-color);border-radius:var(--radius);font-size:0.85rem;">
+                        <option value="">All</option>
+                        <option value="completed" {% if request.query_params.get('status') == 'completed' %}selected{% endif %}>Completed</option>
+                        <option value="failed" {% if request.query_params.get('status') == 'failed' %}selected{% endif %}>Failed</option>
+                        <option value="running" {% if request.query_params.get('status') == 'running' %}selected{% endif %}>Running</option>
+                    </select>
+                </div>
+                <input type="hidden" name="sort" value="{{ sort }}">
+                <input type="hidden" name="dir" value="{{ direction }}">
+            </form>
+        </div>
+    </aside>
+
+    <div style="flex:1;">
+        {% if error_message %}
+        <div class="error-state">{{ error_message }}</div>
+        {% elif not runs %}
+        <div class="card" style="text-align:center;padding:3rem;">
+            <h2 style="margin-top:0;color:var(--text-secondary);">No experiments yet</h2>
+            <p style="color:var(--text-secondary);">Run your first backtest in the <a href="/strategies" style="color:var(--informational);font-weight:600;">Strategy Lab</a> to see results here.</p>
+        </div>
+        {% else %}
+        <table>
+            <thead>
+                <tr>
+                    <th><a href="/experiments?sort=created_at&dir={% if sort == 'created_at' and direction == 'desc' %}asc{% else %}desc{% endif %}" style="color:inherit;text-decoration:none;">Date {% if sort == 'created_at' %}{{ '▼' if direction == 'desc' else '▲' }}{% endif %}</a></th>
+                    <th><a href="/experiments?sort=strategy&dir={% if sort == 'strategy' and direction == 'asc' %}desc{% else %}asc{% endif %}" style="color:inherit;text-decoration:none;">Strategy {% if sort == 'strategy' %}{{ '▼' if direction == 'desc' else '▲' }}{% endif %}</a></th>
+                    <th>Sharpe</th>
+                    <th>Total Return</th>
+                    <th>Max DD</th>
+                    <th>Status</th>
+                    <th>Run ID</th>
+                </tr>
+            </thead>
+            <tbody id="experiment-table-body">
+                {% include "partials/experiment_row.html" %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+</div>
+
+{% if not error_message %}
+<script src="/static/experiment_filters.js" type="module"></script>
+{% endif %}
+{% endblock %}

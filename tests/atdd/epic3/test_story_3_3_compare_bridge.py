@@ -36,7 +36,7 @@ class TestStory33CompareBridge:
         run_a = db_with_experiments._known_run_ids[0]
         run_b = db_with_experiments._known_run_ids[1]
         diff = compare_runs(db_with_experiments, run_a, run_b)
-        for metric_name, change in diff.metrics_diff.items():
+        for _metric_name, change in diff.metrics_diff.items():
             assert change.direction in ("improvement", "degradation", "neutral")
             assert change.delta is not None
 

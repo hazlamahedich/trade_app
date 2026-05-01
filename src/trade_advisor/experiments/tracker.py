@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import functools
 import hashlib
 import json
@@ -21,8 +22,11 @@ _EXPERIMENT_COLUMNS = (
     "run_id, config_hash, strategy, metrics_json, seed, status, "
     "parent_run_id, git_commit, data_fingerprint, "
     "python_version, package_versions, is_dirty, result_hash, "
-    "pre_mortem, created_at, completed_at"
+    "pre_mortem, narrative, created_at, completed_at"
 )
+VALID_ORDER_COLUMNS = {"created_at", "strategy", "status", "run_id"}
+VALID_ORDER_DIRS = {"asc", "desc"}
+VALID_METRIC_SORTS = {"sharpe", "total_return"}
 _EXPERIMENT_COL_NAMES = [c.strip() for c in _EXPERIMENT_COLUMNS.split(",")]
 
 
@@ -54,6 +58,7 @@ class ExperimentRecord(BaseModel):
     is_dirty: bool | None = False
     result_hash: str | None = None
     pre_mortem: str | None = None
+    narrative: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None
 
@@ -186,6 +191,7 @@ def compute_result_hash(equity: pd.Series, trades: pd.DataFrame) -> str:
     tr_bytes = np.asarray(numeric_cols.values).tobytes()
     return hashlib.sha256(eq_bytes + tr_bytes + all_cols_hash.encode()).hexdigest()
 
+
 def _json_safe(obj: Any) -> Any:
     if isinstance(obj, float) and (math.isnan(obj) or math.isinf(obj)):
         return None
@@ -196,6 +202,53 @@ def _json_safe(obj: Any) -> Any:
     if isinstance(obj, np.floating):
         return float(obj)
     return obj
+
+
+def generate_narrative(record: ExperimentRecord) -> str:
+    parts: list[str] = []
+    metrics: dict[str, Any] = {}
+    if record.metrics_json:
+        with contextlib.suppress(json.JSONDecodeError, TypeError):
+            metrics = json.loads(record.metrics_json)
+
+    total_return = metrics.get("total_return")
+    sharpe = metrics.get("sharpe")
+    max_dd = metrics.get("max_drawdown")
+
+    if record.status == "failed":
+        parts.append(f"Run {record.run_id} failed during execution.")
+    elif record.status == "running":
+        parts.append(f"Run {record.run_id} is currently running.")
+    else:
+        strategy = record.strategy or "unknown"
+        created = record.created_at.strftime("%Y-%m-%d") if record.created_at else "unknown date"
+        ret_str = f"{total_return:+.1%}" if total_return is not None else "N/A"
+        sharpe_str = f"{sharpe:.2f}" if sharpe is not None else "N/A"
+        dd_str = f"{max_dd:.1%}" if max_dd is not None else "N/A"
+        parts.append(
+            f"Ran {strategy} on {created}. Result: {ret_str} return, "
+            f"Sharpe {sharpe_str}, max drawdown {dd_str}."
+        )
+
+    if record.pre_mortem:
+        parts.append(f"Pre-mortem prediction: {record.pre_mortem}")
+
+    if record.parent_run_id:
+        parts.append(f"Forked from run {record.parent_run_id[:12]}.")
+
+    return " ".join(parts) if parts else f"Run {record.run_id}."
+
+
+def generate_narrative_from_stored(stored: Any) -> str:
+    parts: list[str] = []
+    config_dict = stored.config_dict or {}
+    strategy = config_dict.get("strategy_type", "unknown")
+    parts.append(f"Ran {strategy} via {stored.engine_mode} engine.")
+    if stored.pre_mortem:
+        parts.append(f"Pre-mortem: {stored.pre_mortem}")
+    if stored.source_run_id:
+        parts.append(f"Reproduced from run {stored.source_run_id[:12]}.")
+    return " ".join(parts) if parts else f"Run {stored.run_id}."
 
 
 class ExperimentRepository:
@@ -209,8 +262,8 @@ class ExperimentRepository:
                     run_id, config_hash, strategy, metrics_json, seed, status,
                     parent_run_id, git_commit, data_fingerprint,
                     python_version, package_versions, is_dirty, result_hash,
-                    pre_mortem, created_at, completed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pre_mortem, narrative, created_at, completed_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.run_id,
@@ -227,6 +280,7 @@ class ExperimentRepository:
                     record.is_dirty,
                     record.result_hash,
                     record.pre_mortem,
+                    record.narrative,
                     record.created_at or now,
                     record.completed_at or now,
                 ),
@@ -269,6 +323,68 @@ class ExperimentRepository:
             return False
 
     @staticmethod
+    async def list_runs(
+        db: Any,
+        order_by: str = "created_at",
+        order_dir: str = "desc",
+        limit: int = 50,
+        offset: int = 0,
+        filters: dict[str, Any] | None = None,
+    ) -> list[ExperimentRecord]:
+        order_col = order_by if order_by in VALID_ORDER_COLUMNS else "created_at"
+        order_d = order_dir if order_dir in VALID_ORDER_DIRS else "desc"
+
+        where_clauses: list[str] = []
+        params: list[Any] = []
+
+        if filters:
+            if "strategy" in filters:
+                where_clauses.append("strategy = ?")
+                params.append(filters["strategy"])
+            if "status" in filters:
+                where_clauses.append("status = ?")
+                params.append(filters["status"])
+            if "date_range" in filters:
+                start, end = filters["date_range"]
+                where_clauses.append("created_at BETWEEN ? AND ?")
+                params.append(start)
+                params.append(end)
+
+        where_sql = ""
+        if where_clauses:
+            where_sql = "WHERE " + " AND ".join(where_clauses)
+
+        if order_by in VALID_METRIC_SORTS:
+            json_path = f"$.{order_by}"
+            metric_col = f"(metrics_json ->> '{json_path}')::DOUBLE"
+            sql = (
+                f"SELECT {_EXPERIMENT_COLUMNS} FROM experiments "
+                f"{where_sql} "
+                f"ORDER BY {metric_col} {order_d} NULLS LAST "
+                f"LIMIT ? OFFSET ?"
+            )
+        else:
+            sql = (
+                f"SELECT {_EXPERIMENT_COLUMNS} FROM experiments "
+                f"{where_sql} "
+                f"ORDER BY {order_col} {order_d} "
+                f"LIMIT ? OFFSET ?"
+            )
+
+        params.extend([limit, offset])
+
+        try:
+            rows = await db.read(sql, tuple(params))
+            results: list[ExperimentRecord] = []
+            for row in rows:
+                mapped = dict(zip(_EXPERIMENT_COL_NAMES, row, strict=True))
+                results.append(ExperimentRecord(**mapped))
+            return results
+        except Exception as exc:
+            log.warning("ta:experiment:list_failed: %s", exc)
+            return []
+
+    @staticmethod
     async def store_full_result(db: Any, stored: Any) -> bool:
         comparison = stored.comparison
         strat = comparison.strategy_result
@@ -293,13 +409,19 @@ class ExperimentRepository:
 
             trade_records = []
             for _, t in result.trades.iterrows():
-                trade_records.append((
-                    stored.run_id, source,
-                    t["entry_ts"], t["exit_ts"],
-                    int(t["side"]), float(t["entry_price"]),
-                    float(t["exit_price"]), float(t["return"]),
-                    float(t["weight"]),
-                ))
+                trade_records.append(
+                    (
+                        stored.run_id,
+                        source,
+                        t["entry_ts"],
+                        t["exit_ts"],
+                        int(t["side"]),
+                        float(t["entry_price"]),
+                        float(t["exit_price"]),
+                        float(t["return"]),
+                        float(t["weight"]),
+                    )
+                )
             if trade_records:
                 await db.write(
                     "INSERT INTO result_trades (run_id, source, entry_ts, exit_ts, side, entry_price, exit_price, return_val, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -326,10 +448,19 @@ class ExperimentRepository:
         baseline_metrics_data = {
             k: getattr(comparison.buy_and_hold_metrics, k)
             for k in [
-                "total_return", "cagr", "sharpe", "sortino", "calmar",
-                "max_drawdown", "alpha", "beta", "information_ratio",
+                "total_return",
+                "cagr",
+                "sharpe",
+                "sortino",
+                "calmar",
+                "max_drawdown",
+                "alpha",
+                "beta",
+                "information_ratio",
             ]
         }
+
+        narrative_text = generate_narrative_from_stored(stored)
 
         await db.write(
             """UPDATE experiments SET
@@ -337,7 +468,7 @@ class ExperimentRepository:
                 trade_analysis_json = ?, baseline_metrics_json = ?,
                 integrity_json = ?, regime_json = ?,
                 is_label = ?, sample_type = ?, status = 'completed',
-                completed_at = ?
+                narrative = ?, completed_at = ?
             WHERE run_id = ?""",
             (
                 json.dumps(stored.config_dict, default=str),
@@ -349,6 +480,7 @@ class ExperimentRepository:
                 json.dumps(regime_data, default=_json_safe) if regime_data else None,
                 comparison.is_label,
                 comparison.sample_type,
+                narrative_text,
                 datetime.now(UTC),
                 stored.run_id,
             ),
@@ -362,6 +494,7 @@ class ExperimentRepository:
         from trade_advisor.backtest.engine import BacktestResult
         from trade_advisor.backtest.integrity import IntegrityResult
         from trade_advisor.backtest.metrics.trade_analysis import TradeAnalysis
+        from trade_advisor.core.config import BacktestConfig, CostModel
         from trade_advisor.web.services.result_store import StoredResult
 
         record = await ExperimentRepository.get_run(db, run_id)
@@ -388,7 +521,34 @@ class ExperimentRepository:
             vals = [val for _, val in data]
             return pd.Series(vals, index=idx, dtype=float)
 
-        async def _build_result(source: str) -> BacktestResult:
+        _default_bt_config = BacktestConfig(
+            initial_cash=Decimal("100000"),
+            cost=CostModel(
+                commission_pct=0.001,
+                slippage_pct=0.0005,
+                commission_fixed=0.0,
+                slippage_atr_fraction=0.0,
+            ),
+            strict=True,
+        )
+
+        def _reconstruct_config(cfg_dict: dict[str, Any]) -> BacktestConfig:
+            try:
+                cost_dict = cfg_dict.get("cost", {})
+                return BacktestConfig(
+                    initial_cash=Decimal(str(cfg_dict.get("initial_cash", "100000"))),
+                    cost=CostModel(
+                        commission_pct=float(cost_dict.get("commission_pct", 0.001)),
+                        slippage_pct=float(cost_dict.get("slippage_pct", 0.0005)),
+                        commission_fixed=float(cost_dict.get("commission_fixed", 0.0)),
+                        slippage_atr_fraction=float(cost_dict.get("slippage_atr_fraction", 0.0)),
+                    ),
+                    strict=True,
+                )
+            except Exception:
+                return _default_bt_config
+
+        async def _build_result(source: str, bt_config: BacktestConfig) -> BacktestResult:
             equity = _to_series((source, "equity"))
             returns = _to_series((source, "returns"))
             positions = _to_series((source, "positions"))
@@ -400,11 +560,27 @@ class ExperimentRepository:
             if trade_rows:
                 trades = pd.DataFrame(
                     trade_rows,
-                    columns=["entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return", "weight"],
+                    columns=[
+                        "entry_ts",
+                        "exit_ts",
+                        "side",
+                        "entry_price",
+                        "exit_price",
+                        "return",
+                        "weight",
+                    ],
                 )
             else:
                 trades = pd.DataFrame(
-                    columns=["entry_ts", "exit_ts", "side", "entry_price", "exit_price", "return", "weight"],
+                    columns=[
+                        "entry_ts",
+                        "exit_ts",
+                        "side",
+                        "entry_price",
+                        "exit_price",
+                        "return",
+                        "weight",
+                    ],
                 )
 
             return BacktestResult(
@@ -412,31 +588,9 @@ class ExperimentRepository:
                 returns=returns,
                 positions=positions,
                 trades=trades,
-                config=record,  # type: ignore[arg-type]
+                config=bt_config,
                 meta={},
             )
-
-        strat_result = await _build_result("strategy")
-        baseline_result = await _build_result("baseline")
-
-        from trade_advisor.backtest.metrics.performance import compute_performance_metrics
-        strategy_metrics = compute_performance_metrics(strat_result)
-        buy_hold_metrics = compute_performance_metrics(baseline_result)
-
-        integrity_data: dict[str, Any] = {}
-        integrity_rows = await db.read(
-            "SELECT integrity_json FROM experiments WHERE run_id = ?",
-            (run_id,),
-        )
-        if integrity_rows and integrity_rows[0][0]:
-            integrity_data = json.loads(integrity_rows[0][0])
-
-        integrity = IntegrityResult(
-            is_valid=integrity_data.get("is_valid", True),
-            errors=integrity_data.get("errors", []),
-            warnings=integrity_data.get("warnings", []),
-            should_halt_display=integrity_data.get("should_halt_display", False),
-        )
 
         meta_rows = await db.read(
             "SELECT config_json, engine_mode, source_run_id, is_label, sample_type, pre_mortem, trade_analysis_json FROM experiments WHERE run_id = ?",
@@ -461,6 +615,31 @@ class ExperimentRepository:
             pre_mortem = row[5]
             if row[6]:
                 ta_data = json.loads(row[6])
+
+        bt_config = _reconstruct_config(config_dict) if config_dict else _default_bt_config
+
+        strat_result = await _build_result("strategy", bt_config)
+        baseline_result = await _build_result("baseline", bt_config)
+
+        from trade_advisor.backtest.metrics.performance import compute_performance_metrics
+
+        strategy_metrics = compute_performance_metrics(strat_result)
+        buy_hold_metrics = compute_performance_metrics(baseline_result)
+
+        integrity_data: dict[str, Any] = {}
+        integrity_rows = await db.read(
+            "SELECT integrity_json FROM experiments WHERE run_id = ?",
+            (run_id,),
+        )
+        if integrity_rows and integrity_rows[0][0]:
+            integrity_data = json.loads(integrity_rows[0][0])
+
+        integrity = IntegrityResult(
+            is_valid=integrity_data.get("is_valid", True),
+            errors=integrity_data.get("errors", []),
+            warnings=integrity_data.get("warnings", []),
+            should_halt_display=integrity_data.get("should_halt_display", False),
+        )
 
         trade_analysis = TradeAnalysis(
             avg_holding_period=ta_data.get("avg_holding_period", 0.0),

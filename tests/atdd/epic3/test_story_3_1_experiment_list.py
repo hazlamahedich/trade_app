@@ -1,7 +1,6 @@
 """ATDD: Story 3.1 — Experiment Run List & Detail View.
 
-Red-phase scaffolds. Tests assert the EXPECTED end-state for Story 3.1.
-All tests are marked pytest.mark.skip until the feature is implemented.
+Tests assert the EXPECTED end-state for Story 3.1.
 """
 
 from __future__ import annotations
@@ -16,7 +15,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-001")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_list_returns_chronological_runs(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -29,7 +27,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-002")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_list_run_includes_required_fields(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -44,7 +41,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-003")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_list_run_includes_key_metrics(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -59,7 +55,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-004")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_sort_by_date(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -71,7 +66,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-005")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_sort_by_metric_sharpe(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -79,27 +73,23 @@ class TestStory31ExperimentRunList:
             db_with_experiments, order_by="sharpe", limit=50
         )
         sharpes = [
-            json.loads(r.metrics_json).get("sharpe", float("-inf"))
-            for r in runs
-            if r.metrics_json
+            json.loads(r.metrics_json).get("sharpe", float("-inf")) for r in runs if r.metrics_json
         ]
         assert sharpes == sorted(sharpes, reverse=True)
 
     @pytest.mark.test_id("3.1-ATDD-006")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_sort_by_strategy_type(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
         runs = await ExperimentRepository.list_runs(
-            db_with_experiments, order_by="strategy", limit=50
+            db_with_experiments, order_by="strategy", order_dir="asc", limit=50
         )
         strategies = [r.strategy for r in runs]
         assert strategies == sorted(strategies)
 
     @pytest.mark.test_id("3.1-ATDD-007")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_detail_view_shows_full_config(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -112,35 +102,28 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-008")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_detail_view_shows_equity_curve(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
         run_id = db_with_experiments._known_run_ids[0]
-        result = await ExperimentRepository.load_full_result(
-            db_with_experiments, run_id
-        )
+        result = await ExperimentRepository.load_full_result(db_with_experiments, run_id)
         assert result is not None
         assert result.comparison.strategy_result.equity is not None
         assert len(result.comparison.strategy_result.equity) > 0
 
     @pytest.mark.test_id("3.1-ATDD-009")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_detail_view_shows_trade_list(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
         run_id = db_with_experiments._known_run_ids[0]
-        result = await ExperimentRepository.load_full_result(
-            db_with_experiments, run_id
-        )
+        result = await ExperimentRepository.load_full_result(db_with_experiments, run_id)
         assert result is not None
         trades = result.comparison.strategy_result.trades
         assert trades is not None
 
     @pytest.mark.test_id("3.1-ATDD-010")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_detail_view_shows_pre_mortem(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -151,7 +134,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-011")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_faceted_filter_by_strategy_family(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -162,7 +144,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-012")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_faceted_filter_by_date_range(self, db_with_experiments):
         from datetime import datetime
 
@@ -178,7 +159,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-013")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_faceted_filter_by_result_quality(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -189,7 +169,6 @@ class TestStory31ExperimentRunList:
 
     @pytest.mark.test_id("3.1-ATDD-014")
     @pytest.mark.p2
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_auto_generated_narrative_present(self, db_with_experiments):
         from trade_advisor.experiments.tracker import ExperimentRepository
 
@@ -204,14 +183,12 @@ class TestStory31ExperimentListWebAPI:
 
     @pytest.mark.test_id("3.1-ATDD-015")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_experiments_page_returns_200(self, app_client):
         response = await app_client.get("/experiments")
         assert response.status_code == 200
 
     @pytest.mark.test_id("3.1-ATDD-016")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_experiments_api_list(self, app_client):
         response = await app_client.get("/api/experiments")
         assert response.status_code == 200
@@ -220,7 +197,6 @@ class TestStory31ExperimentListWebAPI:
 
     @pytest.mark.test_id("3.1-ATDD-017")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.1 not implemented")
     async def test_experiment_detail_api(self, app_client, db_with_experiments):
         run_id = db_with_experiments._known_run_ids[0]
         response = await app_client.get(f"/api/experiments/{run_id}")
