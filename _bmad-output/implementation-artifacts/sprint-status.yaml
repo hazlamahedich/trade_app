@@ -1,5 +1,5 @@
 # generated: 2026-04-24
-# last_updated: 2026-04-29T12:00:00Z
+# last_updated: 2026-05-01T22:30:00Z
 # project: trade_advisor
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-05-01T18:30:00Z
+last_updated: 2026-05-01T20:00:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -75,7 +75,7 @@ development_status:
   # Epic 3: Experiment Tracking & Reproducibility
   epic-3: in-progress
   3-1-experiment-run-list-detail-view: done
-  3-2-experiment-lineage-dag: backlog
+  3-2-experiment-lineage-dag: done
   3-3-comparebridge-split-panel: backlog
   3-4-run-retrieval-full-reproduction: backlog
   3-5-ml-based-strategy-signal-bridge: backlog

@@ -108,5 +108,46 @@
         {% endif %}
     </div>
 </div>
+
+{% if lineage_result and lineage_result.nodes|length > 0 %}
+<div class="card" style="margin-top:1.5rem;">
+    <h3 style="margin-top:0;font-size:0.9rem;color:var(--text-secondary);">Experiment Lineage</h3>
+    {% if lineage_result.truncated %}
+    <p style="font-size:0.8rem;color:var(--warning);margin:0.25rem 0 0.75rem 0;">Lineage truncated — some ancestors not shown.</p>
+    {% endif %}
+    <div style="border-left:2px solid var(--border-color);margin-left:1rem;padding-left:1.5rem;">
+        {% for node in lineage_result.nodes %}
+        <div style="margin-bottom:1rem;padding:0.75rem;border-radius:6px;
+            {% if node.run_id == run_id %}background:var(--bg-secondary);border:1px solid var(--informational);{% else %}background:var(--bg-primary);border:1px solid var(--border-color);{% endif %}">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.25rem;">
+                <span class="data-font" style="font-size:0.85rem;font-weight:600;">
+                    <a href="/experiments/{{ node.run_id }}" style="color:var(--informational);text-decoration:none;">{{ node.run_id[:12] }}</a>
+                </span>
+                {% if node.key_metric is not none %}
+                <span class="badge badge-healthy" style="font-size:0.75rem;">
+                    Sharpe {{ '%.2f' | format(node.key_metric) }}
+                </span>
+                {% endif %}
+                {% if node.run_id == run_id %}
+                <span class="badge badge-informational" style="font-size:0.7rem;">current</span>
+                {% endif %}
+            </div>
+            {% if node.parameter_diff and node.parameter_diff|length > 0 %}
+            <div style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.25rem;">
+                {% for param, vals in node.parameter_diff.items() %}
+                <span style="font-size:0.75rem;background:var(--bg-secondary);padding:0.15rem 0.5rem;border-radius:4px;">
+                    {{ param }}: {{ vals.old | tojson }}&rarr;{{ vals.new | tojson }}
+                </span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if node.narrative %}
+            <p style="font-size:0.8rem;color:var(--text-secondary);margin:0.25rem 0 0 0;">{{ node.narrative[:120] }}{% if node.narrative|length > 120 %}...{% endif %}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}

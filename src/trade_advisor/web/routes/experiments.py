@@ -182,6 +182,26 @@ async def api_experiment_list(request: Request) -> Any:
     return JSONResponse(result)
 
 
+@api_router.get("/{run_id}/lineage")
+async def api_experiment_lineage(request: Request, run_id: str) -> Any:
+    from trade_advisor.main import get_db
+
+    db = await get_db(request)
+    try:
+        from trade_advisor.experiments.tracker import ExperimentRepository
+
+        if not await ExperimentRepository.run_exists(db, run_id):
+            return JSONResponse({"error": "not found"}, status_code=404)
+
+        from trade_advisor.experiments.lineage import get_lineage
+
+        lineage = await get_lineage(db, run_id)
+        return JSONResponse(lineage.model_dump(mode="json"))
+    except Exception as exc:
+        log.warning("ta:experiments:lineage_failed run_id=%s: %s", run_id, exc)
+        return JSONResponse({"error": "Unable to load lineage."}, status_code=500)
+
+
 @api_router.get("/{run_id}")
 async def api_experiment_detail(request: Request, run_id: str) -> Any:
     from trade_advisor.main import get_db
@@ -291,6 +311,15 @@ async def experiment_detail(request: Request, run_id: str) -> Any:
             "run_id": run_id,
             "has_result": result is not None,
         }
+
+        try:
+            from trade_advisor.experiments.lineage import get_lineage as _get_lineage
+
+            lineage_result = await _get_lineage(db, run_id)
+            ctx["lineage_result"] = lineage_result
+        except Exception:
+            ctx["lineage_result"] = None
+
         return templates.TemplateResponse(request, "pages/experiment_detail.html", ctx)
     except Exception as exc:
         log.warning("ta:experiments:detail_failed run_id=%s: %s", run_id, exc)

@@ -158,6 +158,21 @@ async def app_client(db_with_experiments):
         app.state.db = original_db
 
 
+@pytest_asyncio.fixture
+async def lineage_app_client(db_with_remix_chain):
+    from trade_advisor.main import app
+
+    original_db = getattr(app.state, "db", None)
+    app.state.db = db_with_remix_chain
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/health")
+            yield client
+    finally:
+        app.state.db = original_db
+
+
 @pytest.fixture(autouse=True)
 def _reset_result_store():
     from trade_advisor.web.services.result_store import get_result_store
@@ -165,3 +180,100 @@ def _reset_result_store():
     get_result_store()._store.clear()
     yield
     get_result_store()._store.clear()
+
+
+@pytest_asyncio.fixture
+async def db_with_remix_chain():
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    now = datetime.now(UTC)
+
+    parent_id = "run_lineage_parent_001"
+    child_id = "run_lineage_child_001"
+
+    parent_config = json.dumps({"fast": 14, "slow": 50, "strategy_type": "sma"})
+    child_config = json.dumps({"fast": 20, "slow": 50, "strategy_type": "sma"})
+
+    async with db:
+        parent = _make_record(
+            run_id=parent_id,
+            strategy="SmaCross",
+            sharpe=0.8,
+            total_return=0.15,
+            created_at=now - timedelta(days=1),
+            pre_mortem="Expect moderate returns",
+        )
+        child = _make_record(
+            run_id=child_id,
+            strategy="SmaCross",
+            sharpe=1.1,
+            total_return=0.25,
+            created_at=now,
+            pre_mortem="Better than parent",
+            parent_run_id=parent_id,
+        )
+        await ExperimentRepository.store_run(db, parent)
+        await ExperimentRepository.store_run(db, child)
+
+        await db.write(
+            "UPDATE experiments SET config_json = ? WHERE run_id = ?",
+            (parent_config, parent_id),
+        )
+        await db.write(
+            "UPDATE experiments SET config_json = ? WHERE run_id = ?",
+            (child_config, child_id),
+        )
+
+        db._parent_run_id = parent_id
+        db._child_run_id = child_id
+        yield db
+
+
+@pytest_asyncio.fixture
+async def db_with_deep_remix_chain():
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    now = datetime.now(UTC)
+
+    run_a = "run_lineage_deep_a"
+    run_b = "run_lineage_deep_b"
+    run_c = "run_lineage_deep_c"
+
+    config_a = json.dumps({"fast": 10, "slow": 50})
+    config_b = json.dumps({"fast": 14, "slow": 50})
+    config_c = json.dumps({"fast": 20, "slow": 50})
+
+    async with db:
+        rec_a = _make_record(
+            run_id=run_a,
+            strategy="SmaCross",
+            sharpe=0.5,
+            total_return=0.10,
+            created_at=now - timedelta(days=2),
+        )
+        rec_b = _make_record(
+            run_id=run_b,
+            strategy="SmaCross",
+            sharpe=0.8,
+            total_return=0.15,
+            created_at=now - timedelta(days=1),
+            parent_run_id=run_a,
+        )
+        rec_c = _make_record(
+            run_id=run_c,
+            strategy="SmaCross",
+            sharpe=1.2,
+            total_return=0.30,
+            created_at=now,
+            parent_run_id=run_b,
+        )
+        await ExperimentRepository.store_run(db, rec_a)
+        await ExperimentRepository.store_run(db, rec_b)
+        await ExperimentRepository.store_run(db, rec_c)
+
+        await db.write("UPDATE experiments SET config_json = ? WHERE run_id = ?", (config_a, run_a))
+        await db.write("UPDATE experiments SET config_json = ? WHERE run_id = ?", (config_b, run_b))
+        await db.write("UPDATE experiments SET config_json = ? WHERE run_id = ?", (config_c, run_c))
+
+        db._leaf_run_id = run_c
+        yield db
