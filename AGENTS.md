@@ -36,7 +36,7 @@ ta dashboard                              # Streamlit UI
 - **Data flow**: yfinance → `data/cache.py` (Parquet at `data_cache/ohlcv/<SYMBOL>/<INTERVAL>/`) → strategies → backtest engine → metrics → MLflow tracking
 - **Strategy pattern**: Subclass `strategies/base.py::Strategy`, implement `generate_signals()` returning `float` Series (range `[-1.0, +1.0]`). Must shift by 1 bar to prevent lookahead bias.
 - **Backtest engine**: `backtest/engine.py` — vectorized pandas/numpy (not vectorbt yet). Signal executed at same bar's close.
-- **Experiment tracking**: `tracking/mlflow_utils.py`, local file store at `mlruns/`
+- **Experiment tracking**: DuckDB-backed experiment layer in `experiments/` (tracker, lineage DAG, compare, reproduction); MLflow in `tracking/mlflow_utils.py`, local file store at `mlruns/`
 - **Web layer**: FastAPI with HTMX + Preact islands, Jinja2 templates in `web/templates/`
 - **Decimal convention**: All financial values use `Decimal` via `DecimalStr` type (see `core/types.py`). Cross float boundary only via `from_float()`/`to_float()`.
 
@@ -60,7 +60,7 @@ BMAD planning docs live in `_bmad-output/planning-artifacts/`:
 - `ux-design-specification.md` — UX flows and components
 - `implementation-readiness-report-2026-04-24.md` — readiness assessment (90/100, READY)
 
-Read these before starting implementation work. The project has completed Epic 1 (all 11 stories done, 600 tests passing). Epic 2 is next.
+Read these before starting implementation work. The project has completed Epics 1–3 (all stories done, ~1700 tests passing). Epic 4 (walk-forward + ML integration) is next.
 
 ## Toolchain Integrations
 
@@ -77,6 +77,8 @@ Read these before starting implementation work. The project has completed Epic 1
 - `pandas-ta` version `0.3.14b` has the `b` suffix — not a typo
 - The `backtest/engine.py` docstring mentions vectorbt but the engine is pure pandas/numpy
 - Phase 2+ directories (`features/`, `ml/`) exist but are empty stubs
-- `mypy --strict` has 12 pre-existing errors (DataConfig missing args, engine arg types); standard `mypy src/` passes with `strict=false`
+- `mypy --strict` passes clean on all modified modules; standard `mypy src/` passes with `strict=false`
 - `setup_logging` is an alias for `configure_logging` in `core/logging.py` — either works
 - `get_api_key(provider)` is in `core/secrets.py` and re-exported from `config.py`
+- Experiment modules accept `db: DatabaseReader` (Protocol from `infra/protocols.py`), not `DatabaseManager` directly — use async `read()`/`write()`/`write_many()` for DB access; sync `_execute_read()` for read-only helpers called from thread-pool contexts
+- `reproduce_run()` is async — all callers must `await` it
