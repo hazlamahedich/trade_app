@@ -1,7 +1,6 @@
 """ATDD: Story 3.4 — Run Retrieval & Full Reproduction.
 
-Red-phase scaffolds. Tests assert the EXPECTED end-state for Story 3.4.
-All tests are marked pytest.mark.skip until the feature is implemented.
+Tests assert the EXPECTED end-state for Story 3.4.
 """
 
 from __future__ import annotations
@@ -15,7 +14,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-001")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_loads_stored_config_seed_and_fingerprint(
         self, db_with_completed_run
     ):
@@ -30,7 +28,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-002")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_executes_with_identical_parameters(
         self, db_with_completed_run
     ):
@@ -43,7 +40,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-003")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduced_result_matches_original_within_tolerance(
         self, db_with_completed_run
     ):
@@ -60,7 +56,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-004")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_data_snapshot_change_shows_warning(self, db_with_stale_fingerprint):
         from trade_advisor.experiments.reproduction import check_data_freshness
 
@@ -71,7 +66,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-005")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduced_run_linked_via_lineage(self, db_with_completed_run):
         from trade_advisor.experiments.reproduction import reproduce_run
 
@@ -81,7 +75,6 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-006")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_preserves_deterministic_run_id(self, db_with_completed_run):
         from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
 
@@ -97,16 +90,17 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-007")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_unknown_run_raises(self, db_with_completed_run):
-        from trade_advisor.experiments.reproduction import load_run_for_reproduction
+        from trade_advisor.experiments.reproduction import (
+            ReproductionError,
+            load_run_for_reproduction,
+        )
 
-        with pytest.raises((ValueError, RuntimeError)):
+        with pytest.raises(ReproductionError):
             load_run_for_reproduction(db_with_completed_run, "nonexistent_run")
 
     @pytest.mark.test_id("3.4-ATDD-008")
     @pytest.mark.p2
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     def test_reproduce_chain_preserves_full_lineage(self, db_with_completed_run):
         from trade_advisor.experiments.reproduction import reproduce_run
 
@@ -122,10 +116,9 @@ class TestStory34ReproductionWebAPI:
 
     @pytest.mark.test_id("3.4-ATDD-009")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
-    async def test_reproduce_api_returns_new_run(self, app_client, db_with_completed_run):
+    async def test_reproduce_api_returns_new_run(self, repro_app_client, db_with_completed_run):
         run_id = db_with_completed_run._run_id
-        response = await app_client.post(f"/api/experiments/{run_id}/reproduce")
+        response = await repro_app_client.post(f"/api/experiments/{run_id}/reproduce")
         assert response.status_code in (200, 202)
         data = response.json()
         assert data["run_id"] != run_id
@@ -133,16 +126,14 @@ class TestStory34ReproductionWebAPI:
 
     @pytest.mark.test_id("3.4-ATDD-010")
     @pytest.mark.p0
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
     async def test_reproduce_api_404_for_unknown_run(self, app_client):
         response = await app_client.post("/api/experiments/nonexistent/reproduce")
         assert response.status_code == 404
 
     @pytest.mark.test_id("3.4-ATDD-011")
     @pytest.mark.p1
-    @pytest.mark.skip(reason="RED: Story 3.4 not implemented")
-    async def test_reproduce_api_warns_on_stale_data(self, app_client, db_with_stale_fingerprint):
+    async def test_reproduce_api_warns_on_stale_data(self, stale_app_client, db_with_stale_fingerprint):
         run_id = db_with_stale_fingerprint._run_id
-        response = await app_client.post(f"/api/experiments/{run_id}/reproduce")
+        response = await stale_app_client.post(f"/api/experiments/{run_id}/reproduce")
         data = response.json()
         assert data.get("data_freshness_warning") is not None

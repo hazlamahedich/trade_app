@@ -6,6 +6,7 @@ import json
 from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 
+import pandas as pd
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -295,3 +296,196 @@ async def db_with_deep_remix_chain():
 
         db._leaf_run_id = run_c
         yield db
+
+
+@pytest_asyncio.fixture
+async def db_with_completed_run():
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    now = datetime.now(UTC)
+
+    async with db:
+        import numpy as np
+
+        from trade_advisor.experiments.tracker import (
+            HashedRunInputs,
+            compute_config_hash,
+            generate_run_id,
+        )
+
+        config_dict = {"strategy_type": "sma", "symbol": "SPY", "fast": 20, "slow": 50}
+        data_fp = "fp_repro_001"
+        code_version = "abc123def456"
+
+        run_id = generate_run_id(
+            HashedRunInputs(
+                config=config_dict,
+                data_fingerprint=data_fp,
+                code_version=code_version,
+            )
+        )
+        config_hash = compute_config_hash(config_dict)
+
+        rec = ExperimentRecord(
+            run_id=run_id,
+            config_hash=config_hash,
+            strategy="SmaCross",
+            metrics_json=json.dumps({"sharpe": 1.5, "total_return": 0.25}),
+            seed=42,
+            status="completed",
+            parent_run_id=None,
+            git_commit=code_version,
+            data_fingerprint=data_fp,
+            python_version="3.12",
+            package_versions="{}",
+            is_dirty=False,
+            result_hash="rhash_repro_001",
+            created_at=now,
+            completed_at=now,
+        )
+        await ExperimentRepository.store_run(db, rec)
+
+        await db.write(
+            "UPDATE experiments SET config_json = ?, engine_mode = 'vectorized', "
+            "status = 'completed' WHERE run_id = ?",
+            (json.dumps(config_dict), run_id),
+        )
+
+        equity_idx = pd.date_range("2024-01-01", periods=10, freq="B", tz="UTC")
+        equity_vals = np.linspace(100, 120, 10)
+        original_equity = pd.Series(equity_vals, index=equity_idx, dtype=float)
+
+        series_data = [
+            (run_id, "strategy", "equity", ts, float(val))
+            for ts, val in zip(equity_idx, equity_vals, strict=True)
+        ]
+        await db.write_many(
+            "INSERT INTO result_series (run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
+            series_data,
+        )
+
+        db._run_id = run_id
+        db._config = config_dict
+        db._data_fingerprint = data_fp
+        db._code_version = code_version
+        db._original_equity = original_equity
+        yield db
+
+
+@pytest_asyncio.fixture
+async def db_with_stale_fingerprint():
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    now = datetime.now(UTC)
+
+    async with db:
+        run_id = "run_stale_001"
+        config_dict = {"strategy_type": "sma", "symbol": "SPY", "fast": 20, "slow": 50}
+
+        rec = ExperimentRecord(
+            run_id=run_id,
+            config_hash="hash_stale_001",
+            strategy="SmaCross",
+            metrics_json=json.dumps({"sharpe": 1.2, "total_return": 0.15}),
+            seed=42,
+            status="completed",
+            parent_run_id=None,
+            git_commit="abc123def456",
+            data_fingerprint="stale_fingerprint_value",
+            python_version="3.12",
+            package_versions="{}",
+            is_dirty=False,
+            result_hash="rhash_stale_001",
+            created_at=now,
+            completed_at=now,
+        )
+        await ExperimentRepository.store_run(db, rec)
+
+        await db.write(
+            "UPDATE experiments SET config_json = ?, engine_mode = 'vectorized', "
+            "status = 'completed' WHERE run_id = ?",
+            (json.dumps(config_dict), run_id),
+        )
+
+        equity_idx = pd.date_range("2024-01-01", periods=5, freq="B", tz="UTC")
+        equity_vals = [100.0, 102.0, 101.0, 103.0, 105.0]
+        series_data = [
+            (run_id, "strategy", "equity", ts, val)
+            for ts, val in zip(equity_idx, equity_vals, strict=True)
+        ]
+        await db.write_many(
+            "INSERT INTO result_series (run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
+            series_data,
+        )
+
+        db._run_id = run_id
+        yield db
+
+
+@pytest_asyncio.fixture
+async def db_with_empty_equity():
+    config = DatabaseConfig(path=":memory:")
+    db = DatabaseManager(config)
+    now = datetime.now(UTC)
+
+    async with db:
+        run_id = "run_empty_eq_001"
+        config_dict = {"strategy_type": "sma", "symbol": "SPY", "fast": 20, "slow": 50}
+
+        rec = ExperimentRecord(
+            run_id=run_id,
+            config_hash="hash_empty_eq_001",
+            strategy="SmaCross",
+            metrics_json=json.dumps({"sharpe": 0.0, "total_return": 0.0}),
+            seed=42,
+            status="completed",
+            parent_run_id=None,
+            git_commit="abc123def456",
+            data_fingerprint="fp_empty_eq_001",
+            python_version="3.12",
+            package_versions="{}",
+            is_dirty=False,
+            result_hash="rhash_empty_eq_001",
+            created_at=now,
+            completed_at=now,
+        )
+        await ExperimentRepository.store_run(db, rec)
+
+        await db.write(
+            "UPDATE experiments SET config_json = ?, engine_mode = 'vectorized', "
+            "status = 'completed' WHERE run_id = ?",
+            (json.dumps(config_dict), run_id),
+        )
+
+        db._run_id = run_id
+        yield db
+
+
+@pytest_asyncio.fixture
+async def repro_app_client(db_with_completed_run):
+    from trade_advisor.main import app
+
+    original_db = getattr(app.state, "db", None)
+    app.state.db = db_with_completed_run
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/health")
+            yield client
+    finally:
+        app.state.db = original_db
+
+
+@pytest_asyncio.fixture
+async def stale_app_client(db_with_stale_fingerprint):
+    from trade_advisor.main import app
+
+    original_db = getattr(app.state, "db", None)
+    app.state.db = db_with_stale_fingerprint
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/health")
+            yield client
+    finally:
+        app.state.db = original_db

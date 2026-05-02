@@ -310,6 +310,42 @@ async def api_experiment_detail(request: Request, run_id: str) -> Any:
         return JSONResponse({"error": "Unable to load experiment detail."}, status_code=503)
 
 
+@api_router.post("/{run_id}/reproduce")
+def api_experiment_reproduce(request: Request, run_id: str) -> Any:
+    if not run_id or not run_id.strip():
+        return JSONResponse({"error": "run_id is required"}, status_code=400)
+
+    db: Any = request.app.state.db
+    if db is None:
+        return JSONResponse({"error": "Database not initialized"}, status_code=503)
+
+    try:
+        from trade_advisor.experiments.reproduction import (
+            ReproductionError,
+            check_data_freshness,
+            reproduce_run,
+        )
+
+        freshness = check_data_freshness(db, run_id)
+        result = reproduce_run(db, run_id)
+
+        response_data: dict[str, Any] = {
+            "run_id": result.run_id,
+            "parent_run_id": result.parent_run_id,
+            "is_clone": result.is_clone,
+        }
+        if freshness.has_changed:
+            response_data["data_freshness_warning"] = freshness.warning
+        return JSONResponse(response_data)
+    except ReproductionError as exc:
+        if exc.error_code == "not_found":
+            return JSONResponse({"error": "Run not found", "run_id": run_id}, status_code=404)
+        return JSONResponse({"error": str(exc), "run_id": run_id}, status_code=400)
+    except Exception as exc:
+        log.warning("ta:experiments:reproduce_failed run_id=%s: %s", run_id, exc)
+        return JSONResponse({"error": "Unable to reproduce run."}, status_code=500)
+
+
 @router.get("/{run_id}")
 async def experiment_detail(request: Request, run_id: str) -> Any:
     from trade_advisor.main import get_db, get_templates
