@@ -3,7 +3,14 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from trade_advisor.web.sse import ErrorEvent, ProgressEvent, SSEEvent
+from trade_advisor.web.sse import (
+    ErrorEvent,
+    ProgressEvent,
+    SSEEvent,
+    WalkForwardCancelledEvent,
+    WalkForwardCompletedEvent,
+    WalkForwardProgressEvent,
+)
 
 
 class TestSSEEventModels:
@@ -83,3 +90,90 @@ class TestSSEEventModels:
     def test_missing_required_fields(self):
         with pytest.raises(ValidationError):
             SSEEvent()
+
+
+class TestWalkForwardSSEEvents:
+    def test_progress_event_creation(self):
+        evt = WalkForwardProgressEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            window_idx=0,
+            total_windows=6,
+            is_sharpe=1.2,
+            oos_sharpe=0.8,
+            oos_return=0.05,
+            status="OK",
+        )
+        assert evt.event_type == "wf_progress"
+        assert evt.window_idx == 0
+        assert evt.total_windows == 6
+        assert evt.is_sharpe == 1.2
+        assert evt.oos_sharpe == 0.8
+        assert evt.oos_return == 0.05
+        assert evt.status == "OK"
+
+    def test_progress_event_inconclusive(self):
+        evt = WalkForwardProgressEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            window_idx=2,
+            total_windows=6,
+            is_sharpe=0.5,
+            oos_sharpe=float("nan"),
+            oos_return=float("nan"),
+            status="INCONCLUSIVE",
+        )
+        assert evt.status == "INCONCLUSIVE"
+
+    def test_completed_event_creation(self):
+        evt = WalkForwardCompletedEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            n_windows=6,
+            discarded_bars=12,
+        )
+        assert evt.event_type == "wf_completed"
+        assert evt.n_windows == 6
+        assert evt.discarded_bars == 12
+
+    def test_completed_event_zero_windows_valid(self):
+        evt = WalkForwardCompletedEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            n_windows=0,
+            discarded_bars=0,
+        )
+        assert evt.n_windows == 0
+
+    def test_cancelled_event_creation(self):
+        evt = WalkForwardCancelledEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            reason="User requested cancellation",
+        )
+        assert evt.event_type == "wf_cancelled"
+        assert evt.reason == "User requested cancellation"
+
+    def test_progress_is_subclass_of_sse(self):
+        assert issubclass(WalkForwardProgressEvent, SSEEvent)
+
+    def test_completed_is_subclass_of_sse(self):
+        assert issubclass(WalkForwardCompletedEvent, SSEEvent)
+
+    def test_cancelled_is_subclass_of_sse(self):
+        assert issubclass(WalkForwardCancelledEvent, SSEEvent)
+
+    def test_progress_round_trip(self):
+        evt = WalkForwardProgressEvent(
+            run_id="test",
+            timestamp="2026-01-01T00:00:00Z",
+            window_idx=0,
+            total_windows=6,
+            is_sharpe=1.2,
+            oos_sharpe=0.8,
+            oos_return=0.05,
+            status="OK",
+        )
+        data = evt.model_dump()
+        assert data["event_type"] == "wf_progress"
+        assert data["window_idx"] == 0

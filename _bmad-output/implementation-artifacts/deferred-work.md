@@ -17,3 +17,21 @@
 - **Transaction atomicity for reproduce_run** — INSERT into experiments and equity copy are two separate operations. If equity INSERT fails, orphaned child run with `status='completed'` exists. `_execute_many` has its own BEGIN/COMMIT, preventing outer transaction wrapping. Target: Epic 4+ (requires refactoring `_execute_many` or adding atomic write path).
 - **DatabaseManager write lock bypass** — `reproduce_run()` uses `db._execute()` directly, bypassing `_rw_lock`. Safe for single-user MVP. DuckDB connections are NOT thread-safe — concurrent writes cause segfault. TODO comments added in `reproduction.py:188-189`. Target: Epic 4+ (add `write_sync()` or route through repo with lock).
 - **f-string SQL column list** — `_REPRODUCTION_COLS` injected via f-string. Constant is safe but pattern is fragile if refactored. Same issue as `compare.py` (deferred from Story 3.3 review).
+
+## Deferred from: code review of story-4.1a.md (2026-05-02)
+
+- **Seed field dead** — `WalkForwardConfig.seed` is never used. Per-window seed derivation (`seed + window_index`) not implemented. Harmless (SmaCross is deterministic). Deferred to Story 4.2 (hyperparameter optimization with random search).
+- **Strategy resolution hardcoded** — `_resolve_strategy` is an if/elif chain, not a registry. Adding strategies requires editing engine code. Acceptable for single-strategy scope.
+- **NaN prices / missing timestamp → unhandled ValueError** — `run_backtest` raises raw `ValueError` on bad input, not `WalkForwardError`. Pre-existing backtest engine behavior.
+- **Open trade at boundary dropped** — Backtest engine doesn't close positions at window end. `n_oos_trades` may undercount. Pre-existing behavior.
+- **DataBoundary gap validation incomplete** — DataBoundary doesn't know gap_bars. Gap enforced by generators only, not by data structure invariant.
+- **No upper bound on window count** — Anchored mode with tiny stride can produce OOM-sized window lists. Production enhancement needed.
+- **Sharpe annualization hardcoded to sqrt(252)** — Assumes daily bars. Matches existing backtest engine convention. Changing creates inconsistency.
+
+## Deferred from: code review of story-4.1b (2026-05-03)
+
+- **`symbol="SPY"`, `interval="1d"` hardcoded in `/run` route** — API cannot run walk-forward on any other ticker/timeframe. Acceptable for Story 4.1 scope; needs parameterization when multi-symbol support is required.
+- **No ATDD test for cancel SSE behavior** — Cancel path tested at unit level (`test_cancel_stops_processing`) but not end-to-end through SSE stream. ATDD coverage gap for the cancel→wf_cancelled event flow.
+- **Async runner imports private `_`-prefixed engine functions** — `async_runner.py` imports `_generate_rolling_boundaries`, `_run_single_window`, etc. Encapsulation risk if engine internals refactor. Tolerable for single-module scope.
+- **`on_progress` callback executes synchronously on event loop** — With many SSE clients, `_emit` iterates all queues synchronously. Blocks event loop. Acceptable for MVP; needs `asyncio.get_event_loop().call_soon` or similar for scale.
+- **`_generate_*_boundaries` not wrapped in `to_thread`** — Boundary generation runs on event loop. Fast for typical configs but could block for O(100k) windows. Low priority.

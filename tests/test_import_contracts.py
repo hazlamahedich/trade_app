@@ -68,6 +68,7 @@ class TestImportContracts:
             if "strategies/" not in m.split(":")[0]
             and "container.py" not in m
             and "web/routes/strategies.py" not in m
+            and "backtest/walkforward/engine.py" not in m
         ]
         assert not violations, (
             "Modules outside strategies/ and container.py import SmaCross:\n"

@@ -30,4 +30,25 @@ class StrategyForkedEvent(SSEEvent):
     variant_params: dict[str, Any] = {}
 
 
+class WalkForwardProgressEvent(SSEEvent):
+    event_type: Literal["wf_progress"] = "wf_progress"
+    window_idx: int = Field(..., ge=0)
+    total_windows: int = Field(..., ge=1)
+    is_sharpe: float
+    oos_sharpe: float
+    oos_return: float
+    status: Literal["OK", "INCONCLUSIVE"]
+
+
+class WalkForwardCompletedEvent(SSEEvent):
+    event_type: Literal["wf_completed"] = "wf_completed"
+    n_windows: int = Field(..., ge=0)
+    discarded_bars: int = Field(..., ge=0)
+
+
+class WalkForwardCancelledEvent(SSEEvent):
+    event_type: Literal["wf_cancelled"] = "wf_cancelled"
+    reason: str = ""
+
+
 # TODO: ResultEvent — Story 1.7

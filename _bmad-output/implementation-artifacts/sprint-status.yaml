@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-05-02T20:00:00Z
+last_updated: 2026-05-03T15:30:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -82,8 +82,10 @@ development_status:
   epic-3-retrospective: done
 
   # Epic 4: Walk-Forward Validation & Honest Evaluation
-  epic-4: backlog
-  4-1-walk-forward-engine-rolling-anchored-modes: backlog
+  epic-4: in-progress
+  4-1-walk-forward-engine-rolling-anchored-modes: done
+  4-1a-walkforward-engine-sync-core: done
+  4-1b-walkforward-async-sse-streaming: done
   4-2-in-sample-hyperparameter-search-pruning: backlog
   4-3-oos-evaluation-frozen-parameters: backlog
   4-4-oos-equity-curve-stitching-efficiency-ratio: backlog
