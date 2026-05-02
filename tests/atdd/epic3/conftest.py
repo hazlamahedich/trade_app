@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
+from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime, timedelta
 
 import pandas as pd
@@ -17,6 +17,42 @@ from trade_advisor.experiments.tracker import (
     ExperimentRepository,
 )
 from trade_advisor.infra.db import DatabaseManager
+
+
+@dataclass
+class ExperimentContext:
+    known_run_ids: list[str] = field(default_factory=list)
+    cross_strategy_run_id: str | None = None
+
+
+@dataclass
+class LineageContext:
+    parent_run_id: str = ""
+    child_run_id: str = ""
+
+
+@dataclass
+class DeepLineageContext:
+    leaf_run_id: str = ""
+
+
+@dataclass
+class ReproductionContext:
+    run_id: str = ""
+    config: dict = field(default_factory=dict)
+    data_fingerprint: str = ""
+    code_version: str = ""
+    original_equity: pd.Series | None = None
+
+
+@dataclass
+class StaleContext:
+    run_id: str = ""
+
+
+@dataclass
+class EmptyEquityContext:
+    run_id: str = ""
 
 
 def _make_record(
@@ -49,6 +85,20 @@ def _make_record(
         created_at=created_at or datetime.now(UTC),
         completed_at=created_at or datetime.now(UTC),
     )
+
+
+async def _build_client(db):
+    from trade_advisor.main import app
+
+    original_db = getattr(app.state, "db", None)
+    app.state.db = db
+    try:
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.get("/health")
+            yield client
+    finally:
+        app.state.db = original_db
 
 
 @pytest_asyncio.fixture
@@ -157,48 +207,11 @@ async def db_with_experiments():
             ),
         )
 
-        db._known_run_ids = ["run_atdd_001", "run_atdd_002", "run_atdd_003"]
-        db._cross_strategy_run_id = "run_atdd_002"
-        yield db
-
-
-@pytest_asyncio.fixture
-async def app_client(db_with_experiments):
-    from trade_advisor.main import app
-
-    original_db = getattr(app.state, "db", None)
-    app.state.db = db_with_experiments
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            await client.get("/health")
-            yield client
-    finally:
-        app.state.db = original_db
-
-
-@pytest_asyncio.fixture
-async def lineage_app_client(db_with_remix_chain):
-    from trade_advisor.main import app
-
-    original_db = getattr(app.state, "db", None)
-    app.state.db = db_with_remix_chain
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            await client.get("/health")
-            yield client
-    finally:
-        app.state.db = original_db
-
-
-@pytest.fixture(autouse=True)
-def _reset_result_store():
-    from trade_advisor.web.services.result_store import get_result_store
-
-    get_result_store()._store.clear()
-    yield
-    get_result_store()._store.clear()
+        ctx = ExperimentContext(
+            known_run_ids=["run_atdd_001", "run_atdd_002", "run_atdd_003"],
+            cross_strategy_run_id="run_atdd_002",
+        )
+        yield db, ctx
 
 
 @pytest_asyncio.fixture
@@ -243,9 +256,8 @@ async def db_with_remix_chain():
             (child_config, child_id),
         )
 
-        db._parent_run_id = parent_id
-        db._child_run_id = child_id
-        yield db
+        ctx = LineageContext(parent_run_id=parent_id, child_run_id=child_id)
+        yield db, ctx
 
 
 @pytest_asyncio.fixture
@@ -294,8 +306,8 @@ async def db_with_deep_remix_chain():
         await db.write("UPDATE experiments SET config_json = ? WHERE run_id = ?", (config_b, run_b))
         await db.write("UPDATE experiments SET config_json = ? WHERE run_id = ?", (config_c, run_c))
 
-        db._leaf_run_id = run_c
-        yield db
+        ctx = DeepLineageContext(leaf_run_id=run_c)
+        yield db, ctx
 
 
 @pytest_asyncio.fixture
@@ -364,12 +376,14 @@ async def db_with_completed_run():
             series_data,
         )
 
-        db._run_id = run_id
-        db._config = config_dict
-        db._data_fingerprint = data_fp
-        db._code_version = code_version
-        db._original_equity = original_equity
-        yield db
+        ctx = ReproductionContext(
+            run_id=run_id,
+            config=config_dict,
+            data_fingerprint=data_fp,
+            code_version=code_version,
+            original_equity=original_equity,
+        )
+        yield db, ctx
 
 
 @pytest_asyncio.fixture
@@ -418,8 +432,8 @@ async def db_with_stale_fingerprint():
             series_data,
         )
 
-        db._run_id = run_id
-        yield db
+        ctx = StaleContext(run_id=run_id)
+        yield db, ctx
 
 
 @pytest_asyncio.fixture
@@ -457,35 +471,42 @@ async def db_with_empty_equity():
             (json.dumps(config_dict), run_id),
         )
 
-        db._run_id = run_id
-        yield db
+        ctx = EmptyEquityContext(run_id=run_id)
+        yield db, ctx
+
+
+@pytest_asyncio.fixture
+async def app_client(db_with_experiments):
+    db, _ctx = db_with_experiments
+    async for client in _build_client(db):
+        yield client
+
+
+@pytest_asyncio.fixture
+async def lineage_app_client(db_with_remix_chain):
+    db, _ctx = db_with_remix_chain
+    async for client in _build_client(db):
+        yield client
 
 
 @pytest_asyncio.fixture
 async def repro_app_client(db_with_completed_run):
-    from trade_advisor.main import app
-
-    original_db = getattr(app.state, "db", None)
-    app.state.db = db_with_completed_run
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            await client.get("/health")
-            yield client
-    finally:
-        app.state.db = original_db
+    db, _ctx = db_with_completed_run
+    async for client in _build_client(db):
+        yield client
 
 
 @pytest_asyncio.fixture
 async def stale_app_client(db_with_stale_fingerprint):
-    from trade_advisor.main import app
+    db, _ctx = db_with_stale_fingerprint
+    async for client in _build_client(db):
+        yield client
 
-    original_db = getattr(app.state, "db", None)
-    app.state.db = db_with_stale_fingerprint
-    try:
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            await client.get("/health")
-            yield client
-    finally:
-        app.state.db = original_db
+
+@pytest.fixture(autouse=True)
+def _reset_result_store():
+    from trade_advisor.web.services.result_store import get_result_store
+
+    get_result_store()._store.clear()
+    yield
+    get_result_store()._store.clear()

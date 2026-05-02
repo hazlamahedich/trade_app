@@ -57,34 +57,50 @@ async def db():
 
 
 class TestNormalizeValueBranches:
+    @pytest.mark.test_id("3.1-UNIT-001")
+    @pytest.mark.p2
     def test_bool_converts(self):
         assert _normalize_value(np.bool_(True)) is True
         assert _normalize_value(np.bool_(False)) is False
 
+    @pytest.mark.test_id("3.1-UNIT-002")
+    @pytest.mark.p2
     def test_dict_value_recurses(self):
         result = _normalize_value({"nested": {"deep": 1}})
         assert result == {"nested": {"deep": 1}}
 
+    @pytest.mark.test_id("3.1-UNIT-003")
+    @pytest.mark.p2
     def test_list_value_maps(self):
         result = _normalize_value([1, 2, 3])
         assert result == [1, 2, 3]
 
+    @pytest.mark.test_id("3.1-UNIT-004")
+    @pytest.mark.p2
     def test_float_rounds_to_15(self):
         result = _normalize_value(0.1234567890123456789)
         assert result == round(0.1234567890123456789, 15)
 
+    @pytest.mark.test_id("3.1-UNIT-005")
+    @pytest.mark.p2
     def test_float_whole_becomes_int(self):
         assert _normalize_value(5.0) == 5
         assert isinstance(_normalize_value(5.0), int)
 
+    @pytest.mark.test_id("3.1-UNIT-006")
+    @pytest.mark.p2
     def test_string_passthrough(self):
         assert _normalize_value("hello") == "hello"
 
+    @pytest.mark.test_id("3.1-UNIT-007")
+    @pytest.mark.p2
     def test_none_passthrough(self):
         assert _normalize_value(None) is None
 
 
 class TestNormalizeConfigListBranch:
+    @pytest.mark.test_id("3.1-UNIT-008")
+    @pytest.mark.p2
     def test_config_with_list_values(self):
         config = {"lookback": [10, 20, 30], "name": "test"}
         result = _normalize_config(config)
@@ -93,32 +109,50 @@ class TestNormalizeConfigListBranch:
 
 
 class TestJsonSafe:
+    @pytest.mark.test_id("3.1-UNIT-009")
+    @pytest.mark.p2
     def test_nan_returns_none(self):
         assert _json_safe(float("nan")) is None
 
+    @pytest.mark.test_id("3.1-UNIT-010")
+    @pytest.mark.p2
     def test_inf_returns_none(self):
         assert _json_safe(float("inf")) is None
 
+    @pytest.mark.test_id("3.1-UNIT-011")
+    @pytest.mark.p2
     def test_negative_inf_returns_none(self):
         assert _json_safe(float("-inf")) is None
 
+    @pytest.mark.test_id("3.1-UNIT-012")
+    @pytest.mark.p2
     def test_decimal_converts(self):
         assert _json_safe(Decimal("100.5")) == 100.5
 
+    @pytest.mark.test_id("3.1-UNIT-013")
+    @pytest.mark.p2
     def test_np_integer_converts(self):
         assert _json_safe(np.int64(42)) == 42
 
+    @pytest.mark.test_id("3.1-UNIT-014")
+    @pytest.mark.p2
     def test_np_floating_converts(self):
         assert _json_safe(np.float64(3.14)) == 3.14
 
+    @pytest.mark.test_id("3.1-UNIT-015")
+    @pytest.mark.p2
     def test_regular_int_passthrough(self):
         assert _json_safe(42) == 42
 
+    @pytest.mark.test_id("3.1-UNIT-016")
+    @pytest.mark.p2
     def test_regular_string_passthrough(self):
         assert _json_safe("test") == "test"
 
 
 class TestGenerateNarrativeFromStored:
+    @pytest.mark.test_id("3.1-UNIT-017")
+    @pytest.mark.p2
     def test_basic_narrative(self):
         mock_stored = type(
             "S",
@@ -135,6 +169,8 @@ class TestGenerateNarrativeFromStored:
         assert "sma" in result
         assert "vectorized" in result
 
+    @pytest.mark.test_id("3.1-UNIT-018")
+    @pytest.mark.p2
     def test_with_pre_mortem(self):
         mock_stored = type(
             "S",
@@ -151,6 +187,8 @@ class TestGenerateNarrativeFromStored:
         assert "Pre-mortem" in result
         assert "Expect good results" in result
 
+    @pytest.mark.test_id("3.1-UNIT-019")
+    @pytest.mark.p2
     def test_with_source_run_id(self):
         mock_stored = type(
             "S",
@@ -167,6 +205,8 @@ class TestGenerateNarrativeFromStored:
         assert "Reproduced from run" in result
         assert "run_abcdef12" in result
 
+    @pytest.mark.test_id("3.1-UNIT-020")
+    @pytest.mark.p2
     def test_empty_config_dict(self):
         mock_stored = type(
             "S",
@@ -182,6 +222,8 @@ class TestGenerateNarrativeFromStored:
         result = generate_narrative_from_stored(mock_stored)
         assert "unknown" in result
 
+    @pytest.mark.test_id("3.1-UNIT-021")
+    @pytest.mark.p2
     def test_none_config_dict(self):
         mock_stored = type(
             "S",
@@ -201,6 +243,8 @@ class TestGenerateNarrativeFromStored:
 
 class TestGetRunErrorPaths:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-022")
+    @pytest.mark.p2
     async def test_get_run_db_exception_returns_none(self):
         db = AsyncMock()
         db.read.side_effect = Exception("DB broken")
@@ -208,6 +252,8 @@ class TestGetRunErrorPaths:
         assert result is None
 
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-023")
+    @pytest.mark.p2
     async def test_get_run_success(self, db):
         await ExperimentRepository.store_run(db, _rec("run_get_test"))
         result = await ExperimentRepository.get_run(db, "run_get_test")
@@ -215,6 +261,8 @@ class TestGetRunErrorPaths:
         assert result.run_id == "run_get_test"
 
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-024")
+    @pytest.mark.p2
     async def test_get_run_not_found(self, db):
         result = await ExperimentRepository.get_run(db, "nonexistent")
         assert result is None
@@ -222,6 +270,8 @@ class TestGetRunErrorPaths:
 
 class TestRunExistsErrorPath:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-025")
+    @pytest.mark.p2
     async def test_run_exists_db_exception(self):
         db = AsyncMock()
         db.read.side_effect = Exception("DB error")
@@ -231,6 +281,8 @@ class TestRunExistsErrorPath:
 
 class TestListRunsErrorPath:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-026")
+    @pytest.mark.p2
     async def test_list_runs_db_exception(self):
         db = AsyncMock()
         db.read.side_effect = Exception("DB error")
@@ -240,6 +292,8 @@ class TestListRunsErrorPath:
 
 class TestStoreRunDuplicate:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.1-UNIT-027")
+    @pytest.mark.p2
     async def test_store_duplicate_returns_true(self, db):
         rec = _rec("run_dup")
         r1 = await ExperimentRepository.store_run(db, rec)
@@ -252,18 +306,24 @@ class TestStoreRunDuplicate:
 
 
 class TestComputeDataFingerprintNoOhlcv:
+    @pytest.mark.test_id("3.1-UNIT-028")
+    @pytest.mark.p2
     def test_no_ohlcv_columns(self):
         df = pd.DataFrame({"a": [1, 2], "b": [3, 4]})
         assert compute_data_fingerprint(df) == "no_ohlcv_columns"
 
 
 class TestComputeResultHashVarious:
+    @pytest.mark.test_id("3.1-UNIT-029")
+    @pytest.mark.p2
     def test_with_non_numeric_trades(self):
         equity = pd.Series([100.0, 101.0])
         trades = pd.DataFrame({"side": ["long"], "return": [0.01], "pnl": [1.0]})
         h = compute_result_hash(equity, trades)
         assert len(h) == 64
 
+    @pytest.mark.test_id("3.1-UNIT-030")
+    @pytest.mark.p2
     def test_with_many_trades(self):
         equity = pd.Series([100.0 + i for i in range(50)])
         trades = pd.DataFrame(
@@ -278,12 +338,16 @@ class TestComputeResultHashVarious:
 
 
 class TestGenerateNarrativeMalformedJson:
+    @pytest.mark.test_id("3.1-UNIT-031")
+    @pytest.mark.p2
     def test_malformed_metrics_json_falls_back(self):
         record = _rec(run_id="run_mj", metrics_json="not json at all")
         narrative = generate_narrative(record)
         assert "SmaCross" in narrative
         assert "N/A" in narrative
 
+    @pytest.mark.test_id("3.1-UNIT-032")
+    @pytest.mark.p2
     def test_none_created_at_with_status_completed(self):
         record = ExperimentRecord(
             run_id="run_no_date",

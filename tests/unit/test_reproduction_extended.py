@@ -32,6 +32,8 @@ async def db():
 
 
 class TestLoadRunMissingSeed:
+    @pytest.mark.test_id("3.4-UNIT-001")
+    @pytest.mark.p2
     def test_seed_missing_raises(self):
         from unittest.mock import MagicMock
 
@@ -55,6 +57,8 @@ class TestLoadRunMissingSeed:
 
 
 class TestLoadRunMissingDataFingerprint:
+    @pytest.mark.test_id("3.4-UNIT-002")
+    @pytest.mark.p2
     def test_data_fingerprint_missing_raises(self, db):
         cfg = json.dumps({"strategy_type": "sma"})
         db._execute(

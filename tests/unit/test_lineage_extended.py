@@ -16,27 +16,41 @@ from trade_advisor.experiments.lineage import _MAX_DEPTH, _extract_key_metric
 
 
 class TestExtractKeyMetricNonDict:
+    @pytest.mark.test_id("3.2-UNIT-001")
+    @pytest.mark.p2
     def test_metrics_json_is_list(self):
         assert _extract_key_metric(json.dumps([1, 2, 3])) is None
 
+    @pytest.mark.test_id("3.2-UNIT-002")
+    @pytest.mark.p2
     def test_metrics_json_is_string_scalar(self):
         assert _extract_key_metric(json.dumps("hello")) is None
 
+    @pytest.mark.test_id("3.2-UNIT-003")
+    @pytest.mark.p2
     def test_metrics_json_is_number(self):
         assert _extract_key_metric(json.dumps(42)) is None
 
+    @pytest.mark.test_id("3.2-UNIT-004")
+    @pytest.mark.p2
     def test_metrics_json_is_bool(self):
         assert _extract_key_metric(json.dumps(True)) is None
 
 
 class TestExtractKeyMetricFloatConversionError:
+    @pytest.mark.test_id("3.2-UNIT-005")
+    @pytest.mark.p2
     def test_sharpe_is_unconvertible_object_string(self):
         data = json.dumps({"sharpe": {"nested": "not a number"}})
         assert _extract_key_metric(data) is None
 
+    @pytest.mark.test_id("3.2-UNIT-006")
+    @pytest.mark.p2
     def test_sharpe_is_list(self):
         assert _extract_key_metric(json.dumps({"sharpe": [1, 2]})) is None
 
+    @pytest.mark.test_id("3.2-UNIT-007")
+    @pytest.mark.p2
     def test_total_return_is_unconvertible_after_bad_sharpe(self):
         data = json.dumps({"sharpe": {"bad": True}, "total_return": 0.5})
         result = _extract_key_metric(data)
@@ -45,6 +59,8 @@ class TestExtractKeyMetricFloatConversionError:
 
 class TestLineageTruncation:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.2-UNIT-008")
+    @pytest.mark.p2
     async def test_truncation_at_max_depth(self, caplog):
         from trade_advisor.core.config import DatabaseConfig
         from trade_advisor.experiments.tracker import ExperimentRecord, ExperimentRepository

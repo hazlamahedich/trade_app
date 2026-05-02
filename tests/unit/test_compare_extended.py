@@ -24,6 +24,8 @@ from trade_advisor.infra.db import DatabaseManager
 
 
 class TestSafeFloatTypeError:
+    @pytest.mark.test_id("3.3-UNIT-001")
+    @pytest.mark.p2
     def test_safe_float_raises_type_error(self):
         class BadObj:
             def __float__(self):
@@ -33,6 +35,8 @@ class TestSafeFloatTypeError:
 
 
 class TestDetermineOrderLexicographicReverse:
+    @pytest.mark.test_id("3.3-UNIT-002")
+    @pytest.mark.p2
     def test_second_run_id_before_first(self):
         a = {"run_id": "zzz", "created_at": None}
         b = {"run_id": "aaa", "created_at": None}
@@ -42,10 +46,14 @@ class TestDetermineOrderLexicographicReverse:
 
 
 class TestComputeParameterDiffBothNone:
+    @pytest.mark.test_id("3.3-UNIT-003")
+    @pytest.mark.p2
     def test_both_none_returns_empty(self):
         result = _compute_parameter_diff_list(None, None)
         assert result == []
 
+    @pytest.mark.test_id("3.3-UNIT-004")
+    @pytest.mark.p2
     def test_a_none_only(self):
         result = _compute_parameter_diff_list(None, {"fast": 20})
         assert result == []
@@ -53,6 +61,8 @@ class TestComputeParameterDiffBothNone:
 
 class TestCompareRunsFirstNotFound:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.3-UNIT-005")
+    @pytest.mark.p2
     async def test_first_run_not_found_raises(self):
         config = DatabaseConfig(path=":memory:")
         db = DatabaseManager(config)
@@ -73,6 +83,8 @@ class TestCompareRunsFirstNotFound:
 
 class TestCompareTradesBadFloatInRow:
     @pytest.mark.asyncio
+    @pytest.mark.test_id("3.3-UNIT-006")
+    @pytest.mark.p2
     async def test_bad_float_in_positions_skipped(self):
         from unittest.mock import MagicMock
 
