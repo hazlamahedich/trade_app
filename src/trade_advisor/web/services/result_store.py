@@ -5,10 +5,10 @@ import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any
 
 from trade_advisor.backtest.baseline import BaselineComparison
 from trade_advisor.backtest.metrics.trade_analysis import TradeAnalysis
+from trade_advisor.infra.protocols import DatabaseReader
 
 log = logging.getLogger(__name__)
 
@@ -34,9 +34,9 @@ class InMemoryResultStore:
     def __init__(self) -> None:
         self._store: dict[str, StoredResult] = {}
         self._lock = asyncio.Lock()
-        self._db: Any = None
+        self._db: DatabaseReader | None = None
 
-    def set_db(self, db: Any) -> None:
+    def set_db(self, db: DatabaseReader) -> None:
         self._db = db
 
     def generate_run_id(self) -> str:
@@ -68,7 +68,9 @@ class InMemoryResultStore:
             try:
                 from trade_advisor.experiments.tracker import ExperimentRepository
 
-                result: StoredResult | None = await ExperimentRepository.load_full_result(self._db, run_id)
+                result: StoredResult | None = await ExperimentRepository.load_full_result(
+                    self._db, run_id
+                )
                 if result is not None:
                     async with self._lock:
                         self._store[run_id] = result

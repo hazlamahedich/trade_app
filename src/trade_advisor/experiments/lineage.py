@@ -17,6 +17,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from trade_advisor.infra.protocols import DatabaseReader
+
 log = logging.getLogger(__name__)
 
 _MAX_DEPTH = 20
@@ -112,7 +114,7 @@ def _build_narrative(
     return ". ".join(parts) + "."
 
 
-async def get_lineage(db: Any, run_id: str) -> LineageResult:
+async def get_lineage(db: DatabaseReader, run_id: str) -> LineageResult:
     rows: list[tuple[Any, ...]] = []
     current_id: str | None = run_id
     visited: set[str] = set()
@@ -195,7 +197,7 @@ async def get_lineage(db: Any, run_id: str) -> LineageResult:
     return LineageResult(nodes=nodes, edges=edges, truncated=truncated)
 
 
-async def check_mutability(db: Any, run_id: str) -> bool:
+async def check_mutability(db: DatabaseReader, run_id: str) -> bool:
     rows = await db.read(
         "SELECT status FROM experiments WHERE run_id = ?",
         (run_id,),

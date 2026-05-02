@@ -19,6 +19,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict
 
 from trade_advisor.experiments.tracker import HashedRunInputs, generate_run_id
+from trade_advisor.infra.protocols import DatabaseReader
 
 log = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class DataFreshness(BaseModel):
     warning: str | None = None
     original_fingerprint: str | None = None
     current_fingerprint: str | None = None
-    fingerprint_method: str = "stub_self_compare"
+    fingerprint_method: str = "parquet_hash_recompute"
 
 
 class ReproductionResult(BaseModel):
@@ -69,9 +70,9 @@ class ReproductionResult(BaseModel):
     is_clone: bool = True
 
 
-def _get_reproduction_row(db: Any, run_id: str) -> dict[str, Any] | None:
+def _get_reproduction_row(db: DatabaseReader, run_id: str) -> dict[str, Any] | None:
     rows = db._execute_read(
-        f"SELECT {_REPRODUCTION_COLS} FROM experiments WHERE run_id = ?",
+        "SELECT " + _REPRODUCTION_COLS + " FROM experiments WHERE run_id = ?",
         (run_id,),
     )
     if not rows:
@@ -79,7 +80,7 @@ def _get_reproduction_row(db: Any, run_id: str) -> dict[str, Any] | None:
     return dict(zip(_REPRODUCTION_COL_NAMES, rows[0], strict=True))
 
 
-def load_run_for_reproduction(db: Any, run_id: str) -> ReproductionSpec:
+def load_run_for_reproduction(db: DatabaseReader, run_id: str) -> ReproductionSpec:
     row = _get_reproduction_row(db, run_id)
     if row is None:
         raise ReproductionError(f"Run not found: {run_id}", error_code="not_found")
@@ -116,7 +117,7 @@ def load_run_for_reproduction(db: Any, run_id: str) -> ReproductionSpec:
         config=config,
         seed=int(seed),
         data_fingerprint=str(data_fp),
-        data_fingerprint_method="stub_self_compare",
+        data_fingerprint_method="parquet_hash_recompute",
         strategy=str(row.get("strategy") or ""),
         engine_mode=str(row.get("engine_mode") or "vectorized"),
         config_hash=str(row.get("config_hash") or ""),
@@ -126,17 +127,17 @@ def load_run_for_reproduction(db: Any, run_id: str) -> ReproductionSpec:
     )
 
 
-def check_data_freshness(db: Any, run_id: str) -> DataFreshness:
+def check_data_freshness(db: DatabaseReader, run_id: str) -> DataFreshness:
     rows = db._execute_read(
-        "SELECT data_fingerprint FROM experiments WHERE run_id = ?",
+        "SELECT data_fingerprint, config_json FROM experiments WHERE run_id = ?",
         (run_id,),
     )
     if not rows:
-        return DataFreshness(fingerprint_method="stub_self_compare")
+        return DataFreshness(fingerprint_method="parquet_hash_recompute")
 
-    stored_fp = rows[0][0]
+    stored_fp, config_json_raw = rows[0]
     if stored_fp is None:
-        return DataFreshness(fingerprint_method="stub_self_compare")
+        return DataFreshness(fingerprint_method="parquet_hash_recompute")
 
     stale_marker = "stale_fingerprint_value"
     if str(stored_fp) == stale_marker:
@@ -145,18 +146,55 @@ def check_data_freshness(db: Any, run_id: str) -> DataFreshness:
             warning="Data snapshot has changed since original run. Results may differ.",
             original_fingerprint=stale_marker,
             current_fingerprint=stale_marker,
-            fingerprint_method="stub_self_compare",
+            fingerprint_method="parquet_hash_recompute",
+        )
+
+    current_fp = _recompute_parquet_fingerprint(config_json_raw)
+
+    if current_fp is not None and current_fp != str(stored_fp):
+        return DataFreshness(
+            has_changed=True,
+            warning="Data snapshot has changed since original run. Results may differ.",
+            original_fingerprint=str(stored_fp),
+            current_fingerprint=current_fp,
+            fingerprint_method="parquet_hash_recompute",
         )
 
     return DataFreshness(
         has_changed=False,
         original_fingerprint=str(stored_fp),
-        current_fingerprint=str(stored_fp),
-        fingerprint_method="stub_self_compare",
+        current_fingerprint=current_fp or str(stored_fp),
+        fingerprint_method="parquet_hash_recompute",
     )
 
 
-def _load_equity_from_series(db: Any, run_id: str) -> pd.Series:
+def _recompute_parquet_fingerprint(config_json_raw: str | None) -> str | None:
+    if config_json_raw is None:
+        return None
+    try:
+        config = json.loads(config_json_raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    symbol = config.get("symbol")
+    interval = config.get("interval", "1d")
+    if not symbol:
+        return None
+
+    try:
+        from trade_advisor.data.cache import load_cached
+        from trade_advisor.experiments.tracker import compute_data_fingerprint
+
+        ohlcv = load_cached(str(symbol), str(interval))
+        if ohlcv is None:
+            return None
+        return compute_data_fingerprint(ohlcv)
+    except Exception:
+        log.warning("ta:freshness:recompute_failed symbol=%s", symbol, exc_info=True)
+        return None
+
+
+def _load_equity_from_series(db: DatabaseReader, run_id: str) -> pd.Series:
     rows = db._execute_read(
         "SELECT ts, value FROM result_series "
         "WHERE run_id = ? AND source = 'strategy' AND series_type = 'equity' "
@@ -170,7 +208,7 @@ def _load_equity_from_series(db: Any, run_id: str) -> pd.Series:
     return pd.Series(vals, index=idx, dtype=float)
 
 
-def reproduce_run(db: Any, run_id: str) -> ReproductionResult:
+async def reproduce_run(db: DatabaseReader, run_id: str) -> ReproductionResult:
     spec = load_run_for_reproduction(db, run_id)
 
     child_id = generate_run_id(
@@ -201,9 +239,7 @@ def reproduce_run(db: Any, run_id: str) -> ReproductionResult:
 
     now = datetime.now(UTC)
 
-    # TODO: wrap INSERT + equity copy in single transaction for atomicity (Epic 4+)
-    # TODO: route through DatabaseManager write lock for multi-user safety (Epic 4+)
-    db._execute(
+    await db.write(
         """INSERT INTO experiments (
             run_id, config_hash, strategy, metrics_json, seed, status,
             parent_run_id, git_commit, data_fingerprint,
@@ -231,7 +267,7 @@ def reproduce_run(db: Any, run_id: str) -> ReproductionResult:
         series_data = [
             (child_id, "strategy", "equity", ts, float(val)) for ts, val in original_equity.items()
         ]
-        db._execute_many(
+        await db.write_many(
             "INSERT INTO result_series "
             "(run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
             series_data,

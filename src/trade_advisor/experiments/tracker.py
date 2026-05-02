@@ -16,6 +16,8 @@ import numpy as np
 import pandas as pd
 from pydantic import BaseModel
 
+from trade_advisor.infra.protocols import DatabaseReader
+
 log = logging.getLogger(__name__)
 
 _EXPERIMENT_COLUMNS = (
@@ -253,7 +255,7 @@ def generate_narrative_from_stored(stored: Any) -> str:
 
 class ExperimentRepository:
     @staticmethod
-    async def store_run(db: Any, record: ExperimentRecord) -> bool:
+    async def store_run(db: DatabaseReader, record: ExperimentRecord) -> bool:
         try:
             now = datetime.now(UTC)
             await db.write(
@@ -296,10 +298,10 @@ class ExperimentRepository:
             return False
 
     @staticmethod
-    async def get_run(db: Any, run_id: str) -> ExperimentRecord | None:
+    async def get_run(db: DatabaseReader, run_id: str) -> ExperimentRecord | None:
         try:
             rows = await db.read(
-                f"SELECT {_EXPERIMENT_COLUMNS} FROM experiments WHERE run_id = ?",
+                "SELECT " + _EXPERIMENT_COLUMNS + " FROM experiments WHERE run_id = ?",
                 (run_id,),
             )
             if not rows:
@@ -312,7 +314,7 @@ class ExperimentRepository:
             return None
 
     @staticmethod
-    async def run_exists(db: Any, run_id: str) -> bool:
+    async def run_exists(db: DatabaseReader, run_id: str) -> bool:
         try:
             rows = await db.read(
                 "SELECT 1 FROM experiments WHERE run_id = ? LIMIT 1",
@@ -324,7 +326,7 @@ class ExperimentRepository:
 
     @staticmethod
     async def list_runs(
-        db: Any,
+        db: DatabaseReader,
         order_by: str = "created_at",
         order_dir: str = "desc",
         limit: int = 50,
@@ -358,17 +360,17 @@ class ExperimentRepository:
             json_path = f"$.{order_by}"
             metric_col = f"(metrics_json ->> '{json_path}')::DOUBLE"
             sql = (
-                f"SELECT {_EXPERIMENT_COLUMNS} FROM experiments "
+                "SELECT " + _EXPERIMENT_COLUMNS + " FROM experiments "
                 f"{where_sql} "
                 f"ORDER BY {metric_col} {order_d} NULLS LAST "
-                f"LIMIT ? OFFSET ?"
+                "LIMIT ? OFFSET ?"
             )
         else:
             sql = (
-                f"SELECT {_EXPERIMENT_COLUMNS} FROM experiments "
+                "SELECT " + _EXPERIMENT_COLUMNS + " FROM experiments "
                 f"{where_sql} "
                 f"ORDER BY {order_col} {order_d} "
-                f"LIMIT ? OFFSET ?"
+                "LIMIT ? OFFSET ?"
             )
 
         params.extend([limit, offset])
@@ -385,7 +387,7 @@ class ExperimentRepository:
             return []
 
     @staticmethod
-    async def store_full_result(db: Any, stored: Any) -> bool:
+    async def store_full_result(db: DatabaseReader, stored: Any) -> bool:
         comparison = stored.comparison
         strat = comparison.strategy_result
         baseline = comparison.buy_and_hold_result
@@ -402,7 +404,7 @@ class ExperimentRepository:
                     if np.isfinite(float(val))
                 ]
                 if rows:
-                    await db.write(
+                    await db.write_many(
                         "INSERT INTO result_series (run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
                         rows,
                     )
@@ -423,7 +425,7 @@ class ExperimentRepository:
                     )
                 )
             if trade_records:
-                await db.write(
+                await db.write_many(
                     "INSERT INTO result_trades (run_id, source, entry_ts, exit_ts, side, entry_price, exit_price, return_val, weight) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     trade_records,
                 )
@@ -489,7 +491,7 @@ class ExperimentRepository:
         return True
 
     @staticmethod
-    async def load_full_result(db: Any, run_id: str) -> Any | None:
+    async def load_full_result(db: DatabaseReader, run_id: str) -> Any | None:
         from trade_advisor.backtest.baseline import BaselineComparison
         from trade_advisor.backtest.engine import BacktestResult
         from trade_advisor.backtest.integrity import IntegrityResult

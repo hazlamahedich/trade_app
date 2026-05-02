@@ -30,13 +30,13 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-002")
     @pytest.mark.p0
-    def test_reproduce_executes_with_identical_parameters(self, db_with_completed_run):
+    async def test_reproduce_executes_with_identical_parameters(self, db_with_completed_run):
         # Given: a database with a completed run
         db, ctx = db_with_completed_run
         from trade_advisor.experiments.reproduction import reproduce_run
 
         # When: reproducing the run
-        new_result = reproduce_run(db, ctx.run_id)
+        new_result = await reproduce_run(db, ctx.run_id)
 
         # Then: a new run is created with a different ID
         assert new_result is not None
@@ -44,13 +44,13 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-003")
     @pytest.mark.p0
-    def test_reproduced_result_matches_original_within_tolerance(self, db_with_completed_run):
+    async def test_reproduced_result_matches_original_within_tolerance(self, db_with_completed_run):
         # Given: a database with a completed run and original equity
         db, ctx = db_with_completed_run
         from trade_advisor.experiments.reproduction import reproduce_run
 
         # When: reproducing the run
-        new_result = reproduce_run(db, ctx.run_id)
+        new_result = await reproduce_run(db, ctx.run_id)
 
         # Then: equity matches original within 1e-10 tolerance
         original = ctx.original_equity
@@ -76,13 +76,13 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-005")
     @pytest.mark.p0
-    def test_reproduced_run_linked_via_lineage(self, db_with_completed_run):
+    async def test_reproduced_run_linked_via_lineage(self, db_with_completed_run):
         # Given: a database with a completed run
         db, ctx = db_with_completed_run
         from trade_advisor.experiments.reproduction import reproduce_run
 
         # When: reproducing the run
-        new_result = reproduce_run(db, ctx.run_id)
+        new_result = await reproduce_run(db, ctx.run_id)
 
         # Then: new run is linked to original via parent_run_id
         assert new_result.parent_run_id == ctx.run_id
@@ -121,14 +121,14 @@ class TestStory34RunReproduction:
 
     @pytest.mark.test_id("3.4-ATDD-008")
     @pytest.mark.p2
-    def test_reproduce_chain_preserves_full_lineage(self, db_with_completed_run):
+    async def test_reproduce_chain_preserves_full_lineage(self, db_with_completed_run):
         # Given: a database with a completed run
         db, ctx = db_with_completed_run
         from trade_advisor.experiments.reproduction import reproduce_run
 
         # When: reproducing twice (chain of 3)
-        gen1 = reproduce_run(db, ctx.run_id)
-        gen2 = reproduce_run(db, gen1.run_id)
+        gen1 = await reproduce_run(db, ctx.run_id)
+        gen2 = await reproduce_run(db, gen1.run_id)
 
         # Then: each generation links to its parent
         assert gen2.parent_run_id == gen1.run_id

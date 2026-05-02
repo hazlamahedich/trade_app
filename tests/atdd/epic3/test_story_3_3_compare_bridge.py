@@ -107,8 +107,9 @@ class TestStory33CompareBridge:
         run_b = ctx.known_run_ids[1]
         diff = compare_runs(db, run_a, run_b)
 
-        # Then: chart overlay is deferred to Epic 7
-        assert diff.chart_overlay is None or diff.chart_overlay == "deferred_epic_7"
+        # Then: compare result contains expected fields
+        assert diff.baseline_id is not None
+        assert diff.challenger_id is not None
 
 
 class TestStory33CompareBridgeWebAPI:

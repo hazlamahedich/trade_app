@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -122,7 +123,7 @@ class TestLoadRunForReproduction:
         assert spec.data_fingerprint == "fp_default"
         assert spec.strategy == "SmaCross"
         assert spec.engine_mode == "vectorized"
-        assert spec.data_fingerprint_method == "stub_self_compare"
+        assert spec.data_fingerprint_method == "parquet_hash_recompute"
 
     def test_missing_config_json_raises(self, db_empty):
         rec = _rec("run_no_config")
@@ -182,10 +183,14 @@ class TestLoadRunForReproduction:
 
 class TestCheckDataFreshness:
     def test_unchanged_fingerprint(self, db_with_run):
-        freshness = check_data_freshness(db_with_run, db_with_run._run_id)
+        with patch(
+            "trade_advisor.experiments.reproduction._recompute_parquet_fingerprint",
+            return_value="fp_default",
+        ):
+            freshness = check_data_freshness(db_with_run, db_with_run._run_id)
         assert freshness.has_changed is False
         assert freshness.warning is None
-        assert freshness.fingerprint_method == "stub_self_compare"
+        assert freshness.fingerprint_method == "parquet_hash_recompute"
 
     def test_changed_fingerprint_shows_warning(self, db_empty):
         _insert_run(db_empty, "run_stale", data_fp="stale_fingerprint_value")
@@ -197,7 +202,7 @@ class TestCheckDataFreshness:
     def test_missing_run_returns_default(self, db_empty):
         freshness = check_data_freshness(db_empty, "nonexistent")
         assert freshness.has_changed is False
-        assert freshness.fingerprint_method == "stub_self_compare"
+        assert freshness.fingerprint_method == "parquet_hash_recompute"
 
     def test_none_fingerprint_returns_default(self, db_empty):
         _insert_run(db_empty, "run_null_fp", data_fp="fp")
@@ -213,25 +218,39 @@ class TestCheckDataFreshness:
         freshness = check_data_freshness(db_empty, "run_empty_str_fp")
         assert freshness.has_changed is False
 
-    def test_fingerprint_method_always_stub(self, db_with_run):
-        freshness = check_data_freshness(db_with_run, db_with_run._run_id)
-        assert freshness.fingerprint_method == "stub_self_compare"
+    def test_fingerprint_method_is_parquet_recompute(self, db_with_run):
+        with patch(
+            "trade_advisor.experiments.reproduction._recompute_parquet_fingerprint",
+            return_value="fp_default",
+        ):
+            freshness = check_data_freshness(db_with_run, db_with_run._run_id)
+        assert freshness.fingerprint_method == "parquet_hash_recompute"
+
+    def test_recomputed_hash_diff_detects_change(self, db_with_run):
+        with patch(
+            "trade_advisor.experiments.reproduction._recompute_parquet_fingerprint",
+            return_value="different_hash_value",
+        ):
+            freshness = check_data_freshness(db_with_run, db_with_run._run_id)
+        assert freshness.has_changed is True
+        assert freshness.original_fingerprint == "fp_default"
+        assert freshness.current_fingerprint == "different_hash_value"
 
 
 # ── Level C: reproduce_run ──────────────────────────────────────────────────
 
 
 class TestReproduceRun:
-    def test_produces_new_run_id(self, db_with_run):
-        result = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_produces_new_run_id(self, db_with_run):
+        result = await reproduce_run(db_with_run, db_with_run._run_id)
         assert result.run_id != db_with_run._run_id
 
-    def test_parent_run_id_set(self, db_with_run):
-        result = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_parent_run_id_set(self, db_with_run):
+        result = await reproduce_run(db_with_run, db_with_run._run_id)
         assert result.parent_run_id == db_with_run._run_id
 
-    def test_equity_matches_within_tolerance(self, db_with_run):
-        result = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_equity_matches_within_tolerance(self, db_with_run):
+        result = await reproduce_run(db_with_run, db_with_run._run_id)
         original = db_with_run._original_equity
         pd.testing.assert_series_equal(
             result.equity.reset_index(drop=True),
@@ -239,8 +258,8 @@ class TestReproduceRun:
             atol=1e-10,
         )
 
-    def test_stores_new_experiment_in_db(self, db_with_run):
-        result = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_stores_new_experiment_in_db(self, db_with_run):
+        result = await reproduce_run(db_with_run, db_with_run._run_id)
         rows = db_with_run._execute_read(
             "SELECT run_id, parent_run_id FROM experiments WHERE run_id = ?",
             (result.run_id,),
@@ -248,29 +267,29 @@ class TestReproduceRun:
         assert len(rows) == 1
         assert rows[0][1] == db_with_run._run_id
 
-    def test_chain_reproduction_depth_2(self, db_with_run):
-        gen1 = reproduce_run(db_with_run, db_with_run._run_id)
-        gen2 = reproduce_run(db_with_run, gen1.run_id)
+    async def test_chain_reproduction_depth_2(self, db_with_run):
+        gen1 = await reproduce_run(db_with_run, db_with_run._run_id)
+        gen2 = await reproduce_run(db_with_run, gen1.run_id)
         assert gen2.parent_run_id == gen1.run_id
         assert gen1.parent_run_id == db_with_run._run_id
 
-    def test_idempotent_reproduce_returns_existing(self, db_with_run):
-        first = reproduce_run(db_with_run, db_with_run._run_id)
-        second = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_idempotent_reproduce_returns_existing(self, db_with_run):
+        first = await reproduce_run(db_with_run, db_with_run._run_id)
+        second = await reproduce_run(db_with_run, db_with_run._run_id)
         assert first.run_id == second.run_id
         assert first.parent_run_id == second.parent_run_id
 
-    def test_config_copied_to_child(self, db_with_run):
-        result = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_config_copied_to_child(self, db_with_run):
+        result = await reproduce_run(db_with_run, db_with_run._run_id)
         assert result.config == db_with_run._config
 
-    def test_empty_equity_reproduced(self, db_empty):
+    async def test_empty_equity_reproduced(self, db_empty):
         cfg = _config_dict()
         _insert_run(db_empty, "run_empty_eq", cfg_json=json.dumps(cfg))
-        result = reproduce_run(db_empty, "run_empty_eq")
+        result = await reproduce_run(db_empty, "run_empty_eq")
         assert len(result.equity) == 0
 
-    def test_nan_inf_equity_preserved(self, db_empty):
+    async def test_nan_inf_equity_preserved(self, db_empty):
         cfg = _config_dict()
         _insert_run(db_empty, "run_nan", cfg_json=json.dumps(cfg))
         idx = pd.date_range("2024-01-01", periods=3, freq="B", tz="UTC")
@@ -282,7 +301,7 @@ class TestReproduceRun:
             "INSERT INTO result_series (run_id, source, series_type, ts, value) VALUES (?, ?, ?, ?, ?)",
             series_data,
         )
-        result = reproduce_run(db_empty, "run_nan")
+        result = await reproduce_run(db_empty, "run_nan")
         assert np.isnan(result.equity.iloc[1])
         assert np.isinf(result.equity.iloc[2])
 
@@ -296,7 +315,7 @@ class TestModels:
             config={"a": 1},
             seed=42,
             data_fingerprint="fp",
-            data_fingerprint_method="stub_self_compare",
+            data_fingerprint_method="parquet_hash_recompute",
             strategy="SmaCross",
             engine_mode="vectorized",
             config_hash="hash123",
@@ -310,7 +329,7 @@ class TestModels:
         f = DataFreshness()
         assert f.has_changed is False
         assert f.warning is None
-        assert f.fingerprint_method == "stub_self_compare"
+        assert f.fingerprint_method == "parquet_hash_recompute"
 
     def test_reproduction_result_is_clone(self):
         r = ReproductionResult(
@@ -460,9 +479,9 @@ class TestWebAPIReproduce:
 
 
 class TestEdgeCases:
-    def test_deterministic_run_id_collision(self, db_with_run):
-        first = reproduce_run(db_with_run, db_with_run._run_id)
-        second = reproduce_run(db_with_run, db_with_run._run_id)
+    async def test_deterministic_run_id_collision(self, db_with_run):
+        first = await reproduce_run(db_with_run, db_with_run._run_id)
+        second = await reproduce_run(db_with_run, db_with_run._run_id)
         assert first.run_id == second.run_id
         rows = db_with_run._execute_read(
             "SELECT COUNT(*) FROM experiments WHERE run_id = ?",
@@ -470,16 +489,18 @@ class TestEdgeCases:
         )
         assert rows[0][0] == 1
 
-    def test_reproducing_a_reproduction(self, db_with_run):
-        gen1 = reproduce_run(db_with_run, db_with_run._run_id)
-        gen2 = reproduce_run(db_with_run, gen1.run_id)
+    async def test_reproducing_a_reproduction(self, db_with_run):
+        gen1 = await reproduce_run(db_with_run, db_with_run._run_id)
+        gen2 = await reproduce_run(db_with_run, gen1.run_id)
         assert gen2.parent_run_id == gen1.run_id
         assert gen1.parent_run_id == db_with_run._run_id
         assert gen2.run_id != gen1.run_id
         assert gen2.run_id != db_with_run._run_id
 
-    def test_concurrent_idempotent_access(self, db_with_run):
-        results = [reproduce_run(db_with_run, db_with_run._run_id) for _ in range(3)]
+    async def test_concurrent_idempotent_access(self, db_with_run):
+        results = []
+        for _ in range(3):
+            results.append(await reproduce_run(db_with_run, db_with_run._run_id))
         assert len({r.run_id for r in results}) == 1
         assert results[0].run_id == results[1].run_id == results[2].run_id
 

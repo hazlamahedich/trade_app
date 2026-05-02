@@ -9,6 +9,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from trade_advisor.infra.protocols import DatabaseReader
+
 log = logging.getLogger(__name__)
 
 
@@ -45,7 +47,6 @@ class CompareResult(BaseModel):
     metrics_diff: dict[str, MetricChange]
     parameter_diff: list[ParameterChange]
     compatibility_warning: str | None
-    chart_overlay: None
     baseline_id: str
     challenger_id: str
     missing_sections: list[str]
@@ -97,9 +98,9 @@ def _safe_float(v: Any) -> float | None:
     return None
 
 
-def _get_experiment_row(db: Any, run_id: str) -> dict[str, Any] | None:
+def _get_experiment_row(db: DatabaseReader, run_id: str) -> dict[str, Any] | None:
     rows = db._execute_read(
-        f"SELECT {_COMPARE_COLS} FROM experiments WHERE run_id = ?",
+        "SELECT " + _COMPARE_COLS + " FROM experiments WHERE run_id = ?",
         (run_id,),
     )
     if not rows:
@@ -224,7 +225,7 @@ def _detect_missing_sections(row: dict[str, Any]) -> list[str]:
     return missing
 
 
-def _has_positions(db: Any, run_id: str) -> bool:
+def _has_positions(db: DatabaseReader, run_id: str) -> bool:
     rows = db._execute_read(
         "SELECT 1 FROM result_series WHERE run_id = ? AND series_type = 'positions' LIMIT 1",
         (run_id,),
@@ -232,7 +233,7 @@ def _has_positions(db: Any, run_id: str) -> bool:
     return len(rows) > 0
 
 
-def compare_runs(db: Any, run_a: str, run_b: str) -> CompareResult:
+def compare_runs(db: DatabaseReader, run_a: str, run_b: str) -> CompareResult:
     row_a = _get_experiment_row(db, run_a)
     row_b = _get_experiment_row(db, run_b)
 
@@ -266,14 +267,13 @@ def compare_runs(db: Any, run_a: str, run_b: str) -> CompareResult:
         metrics_diff=metrics_diff,
         parameter_diff=parameter_diff,
         compatibility_warning=compatibility_warning,
-        chart_overlay=None,
         baseline_id=baseline["run_id"],
         challenger_id=challenger["run_id"],
         missing_sections=missing_sections,
     )
 
 
-def compare_trades(db: Any, run_a: str, run_b: str) -> TradeAlignment:
+def compare_trades(db: DatabaseReader, run_a: str, run_b: str) -> TradeAlignment:
     for rid in (run_a, run_b):
         row = _get_experiment_row(db, rid)
         if row is None:

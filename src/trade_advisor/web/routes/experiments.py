@@ -9,6 +9,8 @@ from typing import Any
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from trade_advisor.infra.protocols import DatabaseReader
+
 log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/experiments")
@@ -311,11 +313,11 @@ async def api_experiment_detail(request: Request, run_id: str) -> Any:
 
 
 @api_router.post("/{run_id}/reproduce")
-def api_experiment_reproduce(request: Request, run_id: str) -> Any:
+async def api_experiment_reproduce(request: Request, run_id: str) -> Any:
     if not run_id or not run_id.strip():
         return JSONResponse({"error": "run_id is required"}, status_code=400)
 
-    db: Any = request.app.state.db
+    db: DatabaseReader = request.app.state.db
     if db is None:
         return JSONResponse({"error": "Database not initialized"}, status_code=503)
 
@@ -327,7 +329,7 @@ def api_experiment_reproduce(request: Request, run_id: str) -> Any:
         )
 
         freshness = check_data_freshness(db, run_id)
-        result = reproduce_run(db, run_id)
+        result = await reproduce_run(db, run_id)
 
         response_data: dict[str, Any] = {
             "run_id": result.run_id,
