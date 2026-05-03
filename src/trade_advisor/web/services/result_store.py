@@ -26,6 +26,9 @@ class StoredResult:
     dirty_tree_warning: bool = False
     pre_mortem: str | None = None
     is_duplicate: bool = False
+    n_trials: int | None = None
+    sr_variance: float | None = None
+    diagnostics_json: str | None = None
 
 
 class InMemoryResultStore:

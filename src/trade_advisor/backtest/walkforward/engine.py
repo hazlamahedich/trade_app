@@ -113,6 +113,8 @@ class WalkForwardResult:
     config: WalkForwardConfig
     discarded_bars: int = 0
     baseline_params: dict[str, Any] | None = None
+    total_trials: int = 0
+    sr_variance: float = 0.0
 
 
 def _generate_rolling_boundaries(
@@ -380,6 +382,9 @@ def walk_forward(
     prior_best_params: dict[str, Any] | None = None
     prior_source_window: int | None = None
 
+    from trade_advisor.backtest.walkforward.deflated import TrialStats
+    cumulative_stats = TrialStats()
+
     if config.optimization is not None:
         if not isinstance(config.optimization, OptimizationConfig):
             raise WalkForwardError(
@@ -424,6 +429,14 @@ def walk_forward(
                 raise WalkForwardError(
                     f"Optimization failed for window {window_idx}: {exc}"
                 ) from exc
+
+            # Story 4.5: Accumulate trial stats for DSR (Welford's algorithm)
+            # Consensus: Only accumulate if metric is 'sharpe' to avoid poisoning sr_variance.
+            if opt_result and config.optimization.metric == "sharpe":
+                window_stats = compute_trial_stats_online(
+                    opt_result.n_trials, (r.metric for r in opt_result.all_results)
+                )
+                cumulative_stats.merge(window_stats)
 
             if opt_result.best_params:
                 is_strategy = strategy_factory(opt_result.best_params)
@@ -474,4 +487,6 @@ def walk_forward(
         config=config,
         discarded_bars=discarded_bars,
         baseline_params=baseline_params,
+        total_trials=cumulative_stats.n_trials,
+        sr_variance=cumulative_stats.variance,
     )

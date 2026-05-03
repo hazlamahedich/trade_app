@@ -18,6 +18,15 @@ from trade_advisor.backtest.engine import BacktestResult
 from trade_advisor.config import BacktestConfig
 
 
+from typing import Protocol, runtime_checkable, TypedDict
+
+
+class MetricMetadata(TypedDict):
+    name: str  # e.g., 'sharpe', 'return'
+    is_annualized: bool
+    is_risk_adjusted: bool
+
+
 @runtime_checkable
 class BacktestEngine(Protocol):
     """Structural protocol for backtest engines.

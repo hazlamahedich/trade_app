@@ -24,7 +24,8 @@ _EXPERIMENT_COLUMNS = (
     "run_id, config_hash, strategy, metrics_json, seed, status, "
     "parent_run_id, git_commit, data_fingerprint, "
     "python_version, package_versions, is_dirty, result_hash, "
-    "pre_mortem, narrative, created_at, completed_at"
+    "pre_mortem, narrative, created_at, completed_at, "
+    "n_trials, sr_variance, diagnostics_json"
 )
 VALID_ORDER_COLUMNS = {"created_at", "strategy", "status", "run_id"}
 VALID_ORDER_DIRS = {"asc", "desc"}
@@ -63,6 +64,9 @@ class ExperimentRecord(BaseModel):
     narrative: str | None = None
     created_at: datetime | None = None
     completed_at: datetime | None = None
+    n_trials: int | None = None
+    sr_variance: float | None = None
+    diagnostics_json: str | None = None
 
 
 def _normalize_value(v: Any) -> Any:
@@ -264,8 +268,9 @@ class ExperimentRepository:
                     run_id, config_hash, strategy, metrics_json, seed, status,
                     parent_run_id, git_commit, data_fingerprint,
                     python_version, package_versions, is_dirty, result_hash,
-                    pre_mortem, narrative, created_at, completed_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pre_mortem, narrative, created_at, completed_at,
+                    n_trials, sr_variance, diagnostics_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     record.run_id,
@@ -285,6 +290,9 @@ class ExperimentRepository:
                     record.narrative,
                     record.created_at or now,
                     record.completed_at or now,
+                    record.n_trials,
+                    record.sr_variance,
+                    record.diagnostics_json,
                 ),
             )
             log.info("ta:experiment:stored run_id=%s", record.run_id)
@@ -470,7 +478,8 @@ class ExperimentRepository:
                 trade_analysis_json = ?, baseline_metrics_json = ?,
                 integrity_json = ?, regime_json = ?,
                 is_label = ?, sample_type = ?, status = 'completed',
-                narrative = ?, completed_at = ?
+                narrative = ?, completed_at = ?,
+                n_trials = ?, sr_variance = ?, diagnostics_json = ?
             WHERE run_id = ?""",
             (
                 json.dumps(stored.config_dict, default=str),
@@ -484,6 +493,9 @@ class ExperimentRepository:
                 comparison.sample_type,
                 narrative_text,
                 datetime.now(UTC),
+                getattr(stored, "n_trials", None),
+                getattr(stored, "sr_variance", None),
+                getattr(stored, "diagnostics_json", None),
                 stored.run_id,
             ),
         )
@@ -672,4 +684,7 @@ class ExperimentRepository:
             engine_mode=engine_mode,
             source_run_id=source_run_id,
             pre_mortem=pre_mortem,
+            n_trials=record.n_trials,
+            sr_variance=record.sr_variance,
+            diagnostics_json=record.diagnostics_json,
         )

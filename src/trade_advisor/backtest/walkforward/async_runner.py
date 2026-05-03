@@ -16,16 +16,23 @@ from typing import Any
 
 import pandas as pd
 
+from trade_advisor.backtest.walkforward.deflated import (
+    TrialStats,
+    compute_trial_stats_online,
+)
 from trade_advisor.backtest.walkforward.engine import (
     WalkForwardConfig,
     WalkForwardError,
     WalkForwardResult,
     WindowResult,
+    _build_strategy_factory,
     _generate_anchored_boundaries,
     _generate_rolling_boundaries,
     _resolve_strategy,
     _run_single_window,
 )
+from trade_advisor.backtest.walkforward.optimize import optimize_is_window
+from trade_advisor.infra.seed import SeedManager
 from trade_advisor.web.sse import WalkForwardProgressEvent
 
 
@@ -48,6 +55,7 @@ async def async_run_walkforward(
         raise WalkForwardError(f"Need >= {min_required} bars, got {data_len}")
 
     strategy = await asyncio.to_thread(_resolve_strategy, config)
+    strategy_factory = _build_strategy_factory(config.strategy_type)
 
     if config.mode == "rolling":
         boundaries = _generate_rolling_boundaries(
@@ -60,13 +68,41 @@ async def async_run_walkforward(
 
     total_windows = len(boundaries)
     windows: list[WindowResult] = []
+    cumulative_stats = TrialStats()
 
     for window_idx, boundary in enumerate(boundaries):
         if cancel_check and cancel_check():
             break
 
+        opt_result = None
+        current_strategy = strategy
+        if config.optimization:
+            is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
+            opt_result = await asyncio.to_thread(
+                optimize_is_window,
+                is_slice,
+                config.optimization,
+                strategy_factory,
+                config.backtest,
+                seed=SeedManager().get_seed(config.seed, "window", window_idx),
+            )
+            if opt_result.best_params:
+                current_strategy = strategy_factory(opt_result.best_params)
+
+            # Story 4.5: Accumulate trial stats
+            if config.optimization.metric == "sharpe":
+                window_stats = compute_trial_stats_online(
+                    opt_result.n_trials, (r.metric for r in opt_result.all_results)
+                )
+                cumulative_stats.merge(window_stats)
+
         window_result = await asyncio.to_thread(
-            _run_single_window, strategy, ohlcv, boundary, config
+            _run_single_window,
+            current_strategy,
+            ohlcv,
+            boundary,
+            config,
+            optimization_result=opt_result,
         )
         windows.append(window_result)
 
@@ -101,4 +137,6 @@ async def async_run_walkforward(
         windows=windows,
         config=config,
         discarded_bars=discarded_bars,
+        total_trials=cumulative_stats.n_trials,
+        sr_variance=cumulative_stats.variance,
     )

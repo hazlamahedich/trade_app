@@ -201,7 +201,9 @@ async def db_with_wf_results():
 
         windows = _make_wf_windows(n_windows=5)
         for w in windows:
-            for src, eq in [("is", w["is_equity"]), ("oos", w["oos_equity"])]:
+            # Use unique source names for each window to avoid overlapping primary keys (run_id, source, ts)
+            for src_base, eq in [("is", w["is_equity"]), ("oos", w["oos_equity"])]:
+                src = f"{src_base}_window_{w['window_idx']}"
                 idx = pd.date_range(
                     f"2020-01-{1 + w['window_idx'] * 5:02d}",
                     periods=len(eq),

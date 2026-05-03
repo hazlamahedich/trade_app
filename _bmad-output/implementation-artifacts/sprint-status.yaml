@@ -1,5 +1,5 @@
 # generated: 2026-04-24
-# last_updated: 2026-05-01T15:24:32Z
+# last_updated: 2026-05-04T10:00:00Z
 # project: trade_advisor
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-04-24
-last_updated: 2026-05-03T21:00:00Z
+last_updated: 2026-05-03T21:40:00Z
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
@@ -90,7 +90,7 @@ development_status:
   4-3-oos-evaluation-frozen-parameters: done
   4-4-oos-equity-curve-stitching-efficiency-ratio: review
   4-4b-risk-adjusted-wfe-ev-significance-decay: review
-  4-5-deflated-sharpe-ratio-trial-accounting: backlog
+  4-5-deflated-sharpe-ratio-trial-accounting: done
   4-6-walk-forward-results-web-page: backlog
   epic-4-retrospective: optional
 

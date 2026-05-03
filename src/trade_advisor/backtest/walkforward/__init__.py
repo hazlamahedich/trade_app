@@ -3,6 +3,14 @@
 from __future__ import annotations
 
 from trade_advisor.backtest.walkforward.async_runner import async_run_walkforward
+from trade_advisor.backtest.walkforward.deflated import (
+    TrialStats,
+    compute_deflated_sharpe,
+    compute_dsr,
+    compute_expected_max_sr,
+    compute_trial_stats_online,
+    count_independent_trials,
+)
 from trade_advisor.backtest.walkforward.engine import (
     DataBoundary,
     WalkForwardConfig,
@@ -37,6 +45,7 @@ __all__ = [
     "PruningConfig",
     "StitchedOOSResult",
     "TrialResult",
+    "TrialStats",
     "WFEThresholds",
     "WalkForwardConfig",
     "WalkForwardError",
@@ -44,10 +53,15 @@ __all__ = [
     "WindowResult",
     "async_run_walkforward",
     "build_stitched_result",
+    "compute_deflated_sharpe",
+    "compute_dsr",
+    "compute_expected_max_sr",
     "compute_expected_value",
     "compute_oos_baseline",
+    "compute_trial_stats_online",
     "compute_wfe",
     "compute_wfe_from_result",
+    "count_independent_trials",
     "stitch_oos_equity",
     "walk_forward",
     "wfe_status",

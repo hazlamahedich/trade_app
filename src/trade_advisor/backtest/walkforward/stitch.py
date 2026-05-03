@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from trade_advisor.backtest.walkforward.deflated import compute_dsr
 from trade_advisor.backtest.walkforward.engine import (
     WalkForwardConfig,
     WalkForwardResult,
@@ -28,12 +29,18 @@ class WFEThresholds:
             )
 
 
+DSR_SIGNIFICANCE_THRESHOLD = 0.95
+
+
 @dataclass
 class WalkforwardDiagnostics:
     risk_adj_wfe: float
     expected_value: float
     oos_p_value: float | None = None
     parameter_decay: float | None = None
+    dsr: float | None = None
+    dsr_significant: bool = False
+    dsr_warning: str | None = None
     hints: dict[str, str] = field(default_factory=dict)
 
 
@@ -273,6 +280,7 @@ def build_stitched_result(
     result: WalkForwardResult,
     ohlcv: pd.DataFrame,
     thresholds: WFEThresholds | None = None,
+    total_trials_override: int | None = None,
 ) -> StitchedOOSResult:
     valid_windows = [w for w in result.windows if w.status == "OK"]
 
@@ -308,18 +316,56 @@ def build_stitched_result(
     # AC-3: Performance Decay
     slope, _ = compute_wfe_decay(per_fold)
 
+    # --- Story 4.5: Deflated Sharpe Ratio (DSR) ---
+    dsr_prob = None
+    dsr_significant = False
+    dsr_warning = None
+
+    n_trials = total_trials_override if total_trials_override is not None else result.total_trials
+    
+    # Consensus: Only compute DSR if we optimized for Sharpe to ensure statistical validity
+    is_sharpe_opt = result.config.optimization and result.config.optimization.metric == "sharpe"
+    
+    if is_sharpe_opt and n_trials > 0 and len(active_bar_returns) >= 2:
+        # AC-1: DSR requires daily (per-bar) returns and consistent Sharpe scaling.
+        # ev here is the arithmetic mean of bar returns (daily).
+        daily_std = np.std(active_bar_returns, ddof=1)
+        daily_sharpe = ev / daily_std if daily_std > 0 else 0.0
+        
+        try:
+            # result.sr_variance is accumulated from annualized Sharpe ratios (sqrt(252)).
+            # Var(SR_ann) = 252 * Var(SR_daily). We must de-annualize to match daily_sharpe.
+            daily_sr_variance = result.sr_variance / 252.0
+            
+            dsr_prob = compute_dsr(
+                daily_sharpe, 
+                n_trials, 
+                daily_sr_variance, 
+                active_bar_returns
+            )
+            dsr_significant = dsr_prob >= DSR_SIGNIFICANCE_THRESHOLD
+            if not dsr_significant:
+                dsr_warning = "Result may be due to multiple testing, not genuine edge"
+        except Exception as exc:
+            log.warning("DSR computation failed: %s", exc)
+
     # AC-8: Actionable Metadata (Hints)
     hints = {}
     if slope < -0.05:
         hints["parameter_decay"] = "Negative slope suggests edge erosion over time."
     if risk_adj_wfe < 0.5:
         hints["risk_adj_wfe"] = "Low risk-adjusted WFE suggests inconsistent OOS risk management."
+    if dsr_prob is not None and not dsr_significant:
+        hints["dsr"] = f"Low DSR probability ({dsr_prob:.2%}) suggests potential overfitting/multiple-testing bias."
 
     diagnostics = WalkforwardDiagnostics(
         risk_adj_wfe=risk_adj_wfe,
         expected_value=ev,
         oos_p_value=p_value,
         parameter_decay=slope if len(per_fold) >= 5 else None,
+        dsr=dsr_prob,
+        dsr_significant=dsr_significant,
+        dsr_warning=dsr_warning,
         hints=hints,
     )
 

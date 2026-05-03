@@ -77,6 +77,13 @@ def _format_runs_for_display(runs: list[Any]) -> list[dict[str, Any]]:
     formatted = []
     for run in runs:
         metrics = _parse_metrics(run.metrics_json)
+
+        diagnostics: dict[str, Any] = {}
+        if getattr(run, "diagnostics_json", None):
+            with contextlib.suppress(json.JSONDecodeError):
+                diagnostics = json.loads(run.diagnostics_json)
+
+        dsr = diagnostics.get("dsr")
         formatted.append(
             {
                 "run_id": run.run_id,
@@ -84,14 +91,16 @@ def _format_runs_for_display(runs: list[Any]) -> list[dict[str, Any]]:
                 "status": run.status,
                 "created_at": run.created_at,
                 "sharpe_display": f"{metrics.get('sharpe', 0.0):.2f}"
-                if metrics.get("sharpe") is not None
+                if metrics.get('sharpe') is not None
                 else "—",
                 "return_display": f"{metrics.get('total_return', 0.0) * 100:+.1f}%"
-                if metrics.get("total_return") is not None
+                if metrics.get('total_return') is not None
                 else "—",
                 "dd_display": f"{metrics.get('max_drawdown', 0.0) * 100:.1f}%"
-                if metrics.get("max_drawdown") is not None
+                if metrics.get('max_drawdown') is not None
                 else "—",
+                "n_trials": getattr(run, "n_trials", 0) or 0,
+                "dsr_display": f"{dsr:.1%}" if dsr is not None else "—",
                 "pre_mortem": run.pre_mortem,
             }
         )
@@ -305,6 +314,9 @@ async def api_experiment_detail(request: Request, run_id: str) -> Any:
                 "git_commit": record.git_commit,
                 "data_fingerprint": record.data_fingerprint,
                 "parent_run_id": record.parent_run_id,
+                "n_trials": record.n_trials,
+                "sr_variance": record.sr_variance,
+                "diagnostics": json.loads(record.diagnostics_json) if record.diagnostics_json else None,
             }
         )
     except Exception as exc:
@@ -407,6 +419,7 @@ async def experiment_detail(request: Request, run_id: str) -> Any:
             "trade_count": trade_count,
             "run_id": run_id,
             "has_result": result is not None,
+            "diagnostics": json.loads(record.diagnostics_json) if record.diagnostics_json else None,
         }
 
         try:

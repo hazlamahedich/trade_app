@@ -68,6 +68,20 @@ def _extract_key_metric(metrics_json: str | None) -> float | None:
     return None
 
 
+def _extract_n_trials(metrics_json: str | None) -> int:
+    """Extract number of trials from metrics JSON."""
+    if not metrics_json:
+        return 0
+    try:
+        data = json.loads(metrics_json)
+        if isinstance(data, dict):
+            # n_trials is MANDATORY for Story 4.5
+            return int(data.get("n_trials", 0))
+    except (json.JSONDecodeError, TypeError, ValueError) as exc:
+        logger.warning("Failed to extract n_trials from experiment: %s", exc)
+    return 0
+
+
 def _compute_parameter_diff(
     parent_config: dict[str, Any], child_config: dict[str, Any]
 ) -> dict[str, dict[str, Any]]:
@@ -195,6 +209,32 @@ async def get_lineage(db: DatabaseReader, run_id: str) -> LineageResult:
             edges.append(LineageEdge(parent_id=parent_rid, child_id=rid))
 
     return LineageResult(nodes=nodes, edges=edges, truncated=truncated)
+
+
+async def get_cumulative_trials(db: DatabaseReader, run_id: str) -> int:
+    """Compute the sum of trials across the entire experiment lineage.
+
+    MANDATORY for Story 4.5: Deflated Sharpe Ratio calculation requires
+    accounting for all multiple testing history in the DAG.
+    """
+    total = 0
+    current_id: str | None = run_id
+    visited: set[str] = set()
+
+    while current_id and current_id not in visited and len(visited) < _MAX_DEPTH:
+        visited.add(current_id)
+        result = await db.read(
+            "SELECT parent_run_id, metrics_json FROM experiments WHERE run_id = ?",
+            (current_id,),
+        )
+        if not result:
+            break
+        
+        row = result[0]
+        total += _extract_n_trials(row[1])
+        current_id = row[0]
+    
+    return total
 
 
 async def check_mutability(db: DatabaseReader, run_id: str) -> bool:

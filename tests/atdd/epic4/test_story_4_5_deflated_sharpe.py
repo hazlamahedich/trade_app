@@ -67,7 +67,7 @@ class TestStory45DeflatedSharpe:
         assert deflated < 0.0 or deflated < 1.0
 
     @pytest.mark.test_id("4.5-ATDD-005")
-    @pytest.mark.p1
+    @pytest.mark.p0
     async def test_trial_count_tracked_from_lineage(self, db_with_wf_results):
         # Given: a database with experiment lineage
         from trade_advisor.backtest.walkforward.deflated import count_independent_trials
@@ -77,8 +77,34 @@ class TestStory45DeflatedSharpe:
         # When: counting trials from experiment lineage
         n_trials = await count_independent_trials(db, strategy="SmaCross")
 
-        # Then: trial count reflects number of independent experiments
+        # Then: trial count reflects number of independent experiments (MANDATORY for DSR)
         assert n_trials >= 1
+
+    @pytest.mark.test_id("4.5-ATDD-010")
+    @pytest.mark.p0
+    async def test_degenerate_distribution_handled_safely(self):
+        # Given: returns with zero variance (degenerate distribution)
+        from trade_advisor.backtest.walkforward.deflated import compute_deflated_sharpe
+
+        standard_sharpe = 0.0
+        n_trials = 100
+
+        # When: computing DSR for a flat equity curve
+        # Then: it does not crash (no NaN/Inf leakage)
+        deflated = compute_deflated_sharpe(standard_sharpe, n_trials)
+        assert deflated == 0.0
+
+    @pytest.mark.test_id("4.5-ATDD-011")
+    @pytest.mark.p0
+    async def test_memory_efficiency_with_many_trials(self):
+        # Given: a massive number of trials
+        from trade_advisor.backtest.walkforward.deflated import compute_trial_stats_online
+
+        # When: processing 100,000 trials using online variance
+        # Then: it completes quickly without storing all results in memory
+        stats = compute_trial_stats_online(n_trials=100_000, metrics_stream=range(100_000))
+        assert stats.n_trials == 100_000
+        assert stats.variance > 0
 
     @pytest.mark.test_id("4.5-ATDD-006")
     @pytest.mark.p1

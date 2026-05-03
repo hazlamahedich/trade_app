@@ -65,6 +65,9 @@ class ExperimentAdditiveColumns(BaseModel):
     regime_json: str | None = None
     is_label: str | None = None
     sample_type: str | None = None
+    n_trials: int | None = None
+    sr_variance: float | None = None
+    diagnostics_json: str | None = None
 
 
 SCHEMA_MODELS: list[type[BaseModel]] = [ExperimentAdditiveColumns]
