@@ -107,6 +107,59 @@ def wf_windows() -> list[dict]:
     return _make_wf_windows()
 
 
+@pytest.fixture
+def wf_result(wf_windows) -> WalkForwardResult:
+    from trade_advisor.backtest.walkforward.engine import (
+        DataBoundary,
+        WalkForwardConfig,
+        WalkForwardResult,
+        WindowResult,
+    )
+    from trade_advisor.config import BacktestConfig
+
+    windows = []
+    for w in wf_windows:
+        i = w["window_idx"]
+        is_bars = 60
+        oos_bars = 20
+        gap_bars = 1
+        start = i * (is_bars + gap_bars + oos_bars)
+
+        boundary = DataBoundary(
+            is_start=start,
+            is_end=start + is_bars,
+            oos_start=start + is_bars + gap_bars,
+            oos_end=start + is_bars + gap_bars + oos_bars,
+        )
+
+        windows.append(
+            WindowResult(
+                boundary=boundary,
+                is_segment=pd.DataFrame({"close": range(is_bars)}),
+                oos_segment=pd.DataFrame({"close": range(oos_bars)}),
+                is_equity=w["is_equity"],
+                oos_equity=w["oos_equity"],
+                is_sharpe=w["is_sharpe"],
+                oos_sharpe=w["oos_sharpe"],
+                is_return=w["is_return"],
+                oos_return=w["oos_return"],
+                status="OK",
+            )
+        )
+
+    return WalkForwardResult(
+        n_windows=len(windows),
+        windows=windows,
+        config=WalkForwardConfig(
+            mode="rolling",
+            is_bars=60,
+            oos_bars=20,
+            seed=42,
+            backtest=BacktestConfig(),  # type: ignore[call-arg]
+        ),
+    )
+
+
 @pytest_asyncio.fixture
 async def db_with_wf_results():
     config = DatabaseConfig(path=":memory:")

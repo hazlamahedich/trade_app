@@ -157,3 +157,38 @@ class TestStory44OOSStitching:
 
         # Then: EV is 0.0
         assert ev == 0.0
+
+    @pytest.mark.test_id("4.4b-ATDD-001")
+    @pytest.mark.p0
+    async def test_risk_adjusted_wfe(self, wf_result):
+        # Given: a full WalkForwardResult
+        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
+        import pandas as pd
+
+        ohlcv = pd.DataFrame({"close": range(1000)})
+
+        # When: building stitched result
+        stitched = build_stitched_result(wf_result, ohlcv)
+
+        # Then: diagnostics contains risk_adj_wfe (OOS_Sharpe / IS_Sharpe)
+        assert stitched.diagnostics is not None
+        assert stitched.diagnostics.risk_adj_wfe >= 0
+
+    @pytest.mark.test_id("4.4b-ATDD-002")
+    @pytest.mark.p1
+    async def test_ev_significance_and_decay(self, wf_result):
+        # Given: a full WalkForwardResult
+        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
+        import pandas as pd
+
+        ohlcv = pd.DataFrame({"close": range(1000)})
+
+        # When: building stitched result
+        stitched = build_stitched_result(wf_result, ohlcv)
+
+        # Then: diagnostics contains p_value and decay
+        # Note: p_value might be None if trades < 30
+        assert hasattr(stitched.diagnostics, "oos_p_value")
+        # Decay is populated if windows >= 5
+        if len(wf_result.windows) >= 5:
+            assert stitched.diagnostics.parameter_decay is not None

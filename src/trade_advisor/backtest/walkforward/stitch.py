@@ -4,11 +4,14 @@ import math
 from dataclasses import dataclass, field
 from typing import Literal
 
+import numpy as np
 import pandas as pd
+from scipy import stats
 
 from trade_advisor.backtest.walkforward.engine import (
     WalkForwardConfig,
     WalkForwardResult,
+    WindowResult,
 )
 
 
@@ -17,9 +20,25 @@ class WFEThresholds:
     healthy_min: float = 0.7
     caution_min: float = 0.5
 
+    def __post_init__(self) -> None:
+        if self.healthy_min <= self.caution_min:
+            raise ValueError(
+                f"WFEThresholds invalid: healthy_min ({self.healthy_min}) "
+                f"must be > caution_min ({self.caution_min})"
+            )
+
 
 @dataclass
-class StitchedOOSResult:
+class WalkforwardDiagnostics:
+    risk_adj_wfe: float
+    expected_value: float
+    oos_p_value: float | None = None
+    parameter_decay: float | None = None
+    hints: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class ExtendedWalkforwardResult:
     stitched_equity: pd.Series
     total_oos_return: float
     total_is_return: float
@@ -30,6 +49,7 @@ class StitchedOOSResult:
     expected_return_per_active_bar: float = 0.0
     n_active_bars_oos: int = 0
     window_0_oos_is_baseline: bool = False
+    diagnostics: WalkforwardDiagnostics | None = None
 
     @property
     def expected_value_per_trade(self) -> float:
@@ -38,6 +58,9 @@ class StitchedOOSResult:
     @property
     def n_oos_trades(self) -> int:
         return self.n_active_bars_oos
+
+
+StitchedOOSResult = ExtendedWalkforwardResult
 
 
 def stitch_oos_equity(oos_segments: list[pd.Series], initial_cash: float = 100_000.0) -> pd.Series:
@@ -72,9 +95,10 @@ def stitch_oos_equity(oos_segments: list[pd.Series], initial_cash: float = 100_0
     return equity.rename("equity")
 
 
-
 def compute_wfe(oos_return: float, is_return: float) -> float:
-    if is_return == 0.0:
+    # Guard against near-zero IS returns producing misleadingly high WFE ratios.
+    # 1e-6 (0.0001%) is a safe floor for meaningful percentage returns.
+    if abs(is_return) < 1e-6:
         return 0.0
     return oos_return / is_return
 
@@ -138,6 +162,55 @@ def compute_expected_value(trade_returns: list[float] | pd.Series) -> float:
     return sum(clean) / len(clean)
 
 
+def compute_wfe_sharpe(windows: list[WindowResult]) -> float:
+    valid = [w for w in windows if w.status == "OK"]
+    if not valid:
+        return 0.0
+    avg_is = sum(w.is_sharpe for w in valid) / len(valid)
+    avg_oos = sum(w.oos_sharpe for w in valid) / len(valid)
+    if avg_is <= 0:
+        return 0.0
+    return avg_oos / avg_is
+
+
+def compute_ev_significance(
+    trade_returns: list[float] | pd.Series,
+) -> tuple[float, float, float]:
+    if isinstance(trade_returns, pd.Series):
+        trade_returns = trade_returns.tolist()
+    clean = [v for v in trade_returns if math.isfinite(v)]
+    n = len(clean)
+    if n < 2:
+        ev = sum(clean) / n if n > 0 else 0.0
+        return 0.0, ev, ev
+
+    ev = sum(clean) / n
+    std = np.std(clean, ddof=1)
+    sem = std / math.sqrt(n)
+    # 95% CI using Z=1.96 as specified in story
+    lower = ev - 1.96 * sem
+    upper = ev + 1.96 * sem
+    return sem, lower, upper
+
+
+def compute_wfe_decay(wfe_per_fold: list[float]) -> tuple[float, float]:
+    n = len(wfe_per_fold)
+    if n < 5:
+        return 0.0, 0.0
+
+    x = np.arange(n)
+    y = np.array(wfe_per_fold)
+
+    # Linear slope
+    slope = np.polyfit(x, y, 1)[0]
+
+    # Spearman correlation
+    s = pd.Series(y)
+    corr = s.corr(pd.Series(x), method="spearman")
+
+    return float(slope), float(corr)
+
+
 def compute_oos_baseline(
     stitched_equity: pd.Series,
     ohlcv: pd.DataFrame,
@@ -152,12 +225,22 @@ def compute_oos_baseline(
         raise ValueError(f"No 'close' column in ohlcv: {list(ohlcv.columns)}")
     close_col = close_candidates[0]
 
-    # Filter OHLCV to exactly the indices present in stitched_equity for precise comparison
-    # This avoids including gap bars or IS periods in the baseline
-    subset = ohlcv.loc[ohlcv.index.isin(stitched_equity.index), close_col]
+    # Filter OHLCV to exactly the indices present in stitched_equity for precise comparison.
+    # We normalize to naive DatetimeIndex to prevent empty sets if one is aware and other is naive.
+    def _to_naive(idx: pd.Index) -> pd.Index:
+        if hasattr(idx, "tz") and idx.tz is not None:
+            return idx.tz_localize(None)
+        return idx
+
+    equity_idx = _to_naive(stitched_equity.index)
+    ohlcv_idx = _to_naive(ohlcv.index)
+    
+    subset = ohlcv.loc[ohlcv_idx.isin(equity_idx), close_col]
     if len(subset) < 2:
         return pd.Series(dtype="float64")
 
+    # Guard against zero prices producing 'inf' returns.
+    subset = subset.replace(0, np.nan).ffill().bfill().fillna(0.0)
     returns = subset.pct_change().dropna()
     cum = (1.0 + returns).cumprod()
 
@@ -210,7 +293,37 @@ def build_stitched_result(
     active_bar_returns = _extract_active_bar_returns(stitched_equity)
     ev = compute_expected_value(active_bar_returns)
 
-    return StitchedOOSResult(
+    # --- Story 4.4b: Advanced Diagnostics ---
+    # AC-1: Risk-Adjusted WFE
+    risk_adj_wfe = compute_wfe_sharpe(result.windows)
+
+    # AC-2: EV Significance
+    sem, _, _ = compute_ev_significance(active_bar_returns)
+    n_trades = len(active_bar_returns)
+    p_value = None
+    if n_trades >= 30:
+        z = ev / sem if sem > 0 else 0.0
+        p_value = float(stats.norm.sf(abs(z)) * 2)
+
+    # AC-3: Performance Decay
+    slope, _ = compute_wfe_decay(per_fold)
+
+    # AC-8: Actionable Metadata (Hints)
+    hints = {}
+    if slope < -0.05:
+        hints["parameter_decay"] = "Negative slope suggests edge erosion over time."
+    if risk_adj_wfe < 0.5:
+        hints["risk_adj_wfe"] = "Low risk-adjusted WFE suggests inconsistent OOS risk management."
+
+    diagnostics = WalkforwardDiagnostics(
+        risk_adj_wfe=risk_adj_wfe,
+        expected_value=ev,
+        oos_p_value=p_value,
+        parameter_decay=slope if len(per_fold) >= 5 else None,
+        hints=hints,
+    )
+
+    return ExtendedWalkforwardResult(
         stitched_equity=stitched_equity,
         total_oos_return=oos_compound,
         total_is_return=is_compound,
@@ -221,5 +334,5 @@ def build_stitched_result(
         expected_return_per_active_bar=ev,
         n_active_bars_oos=len(active_bar_returns),
         window_0_oos_is_baseline=result.config.frozen_params_mode,
+        diagnostics=diagnostics,
     )
-

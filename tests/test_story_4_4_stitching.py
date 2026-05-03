@@ -407,9 +407,8 @@ class TestEdgeCases:
     @pytest.mark.p2
     def test_tiny_returns_no_overflow(self):
         tiny = 1e-12
-        wfe = compute_wfe(tiny, tiny)
-        assert math.isfinite(wfe)
-        assert wfe == pytest.approx(1.0)
+        # Now returns 0.0 due to 1e-6 epsilon
+        assert compute_wfe(tiny, tiny) == 0.0
 
     @pytest.mark.test_id("4.4-NEW-030")
     @pytest.mark.p2
@@ -429,6 +428,49 @@ class TestEdgeCases:
         )
         stitched = build_stitched_result(result, ohlcv)
         assert len(stitched.stitched_equity) > 0
+
+    @pytest.mark.test_id("4.4-NEW-031")
+    @pytest.mark.p1
+    def test_compute_wfe_epsilon_guard(self):
+        # 1e-7 is below the 1e-6 epsilon
+        assert compute_wfe(0.05, 1e-7) == 0.0
+        # 2e-6 is above the epsilon
+        assert compute_wfe(0.05, 2e-6) == pytest.approx(25000.0)
+
+    @pytest.mark.test_id("4.4-NEW-032")
+    @pytest.mark.p1
+    def test_compute_oos_baseline_timezone_normalization(self):
+        # Aware equity index, naive ohlcv
+        idx = pd.date_range("2023-01-01", periods=5, freq="D")
+        stitched_equity = pd.Series([100000.0, 101000.0, 102000.0, 103000.0, 104000.0], index=idx.tz_localize("UTC"))
+        ohlcv = pd.DataFrame({"close": [10, 11, 12, 13, 14]}, index=idx)
+        config = WalkForwardConfig(mode="rolling", is_bars=20, oos_bars=10)
+        
+        from trade_advisor.backtest.walkforward.stitch import compute_oos_baseline
+        baseline = compute_oos_baseline(stitched_equity, ohlcv, config)
+        assert len(baseline) == 5
+        # Index should be naive per normalization
+        assert (baseline.index == idx).all()
+
+    @pytest.mark.test_id("4.4-NEW-033")
+    @pytest.mark.p1
+    def test_compute_oos_baseline_zero_price_guard(self):
+        idx = pd.date_range("2023-01-01", periods=5, freq="D")
+        stitched_equity = pd.Series([100000.0, 101000.0, 102000.0, 103000.0, 104000.0], index=idx)
+        # Zero price at index 2
+        ohlcv = pd.DataFrame({"close": [10, 11, 0, 13, 14]}, index=idx)
+        config = WalkForwardConfig(mode="rolling", is_bars=20, oos_bars=10)
+        
+        from trade_advisor.backtest.walkforward.stitch import compute_oos_baseline
+        baseline = compute_oos_baseline(stitched_equity, ohlcv, config)
+        assert not np.isinf(baseline).any()
+        assert not baseline.isna().any()
+
+    @pytest.mark.test_id("4.4-NEW-034")
+    @pytest.mark.p1
+    def test_wfe_thresholds_validation(self):
+        with pytest.raises(ValueError, match="must be > caution_min"):
+            WFEThresholds(healthy_min=0.5, caution_min=0.6)
 
 
 # ---------------------------------------------------------------------------
@@ -460,3 +502,91 @@ class TestATDDCompat:
 
     def test_atdd_009_empty_ev(self):
         assert compute_expected_value([]) == 0.0
+
+# ---------------------------------------------------------------------------
+# Story 4.4b: Advanced Diagnostics (Risk-Adj WFE, EV Sig, Decay)
+# ---------------------------------------------------------------------------
+
+from trade_advisor.backtest.walkforward.stitch import (
+    WalkforwardDiagnostics,
+    compute_wfe_sharpe,
+    compute_ev_significance,
+    compute_wfe_decay,
+)
+
+class TestStory44bAdvancedDiagnostics:
+    """Tests for Story 4.4b new diagnostic metrics."""
+
+    @pytest.mark.test_id("4.4b-NEW-001")
+    def test_compute_wfe_sharpe_basic(self):
+        # Aggregate OOS Sharpe / Aggregate IS Sharpe
+        # windows[0]: IS=1.0, OOS=0.8
+        # windows[1]: IS=2.0, OOS=1.2
+        # Avg IS = 1.5, Avg OOS = 1.0
+        # Ratio = 1.0 / 1.5 = 0.666...
+        windows = [
+            _make_window(0, is_sharpe=1.0, oos_sharpe=0.8),
+            _make_window(1, is_sharpe=2.0, oos_sharpe=1.2),
+        ]
+        ratio = compute_wfe_sharpe(windows)
+        assert np.isclose(ratio, 1.0 / 1.5)
+
+    @pytest.mark.test_id("4.4b-NEW-002")
+    def test_compute_wfe_sharpe_zero_is(self):
+        windows = [_make_window(0, is_sharpe=0.0, oos_sharpe=0.8)]
+        assert compute_wfe_sharpe(windows) == 0.0
+
+    @pytest.mark.test_id("4.4b-NEW-003")
+    def test_compute_wfe_sharpe_ok_only(self):
+        windows = [
+            _make_window(0, is_sharpe=1.0, oos_sharpe=0.8, status="OK"),
+            _make_window(1, is_sharpe=2.0, oos_sharpe=1.2, status="INCONCLUSIVE"),
+        ]
+        # Should only use window 0
+        assert compute_wfe_sharpe(windows) == 0.8 / 1.0
+
+    @pytest.mark.test_id("4.4b-NEW-004")
+    def test_compute_ev_significance_known(self):
+        # SEM = std / sqrt(n)
+        # returns = [0.01, 0.02, 0.03]
+        # mean = 0.02
+        # std (ddof=1) = sqrt(((0.01-0.02)^2 + (0-0)^2 + (0.01)^2) / 2) = sqrt(0.0002 / 2) = 0.01
+        # n = 3
+        # SEM = 0.01 / sqrt(3) = 0.0057735...
+        returns = [0.01, 0.02, 0.03]
+        sem, lower, upper = compute_ev_significance(returns)
+        assert np.isclose(sem, 0.01 / math.sqrt(3))
+        assert np.isclose(lower, 0.02 - 1.96 * sem)
+        assert np.isclose(upper, 0.02 + 1.96 * sem)
+
+    @pytest.mark.test_id("4.4b-NEW-005")
+    def test_compute_ev_significance_empty(self):
+        sem, lower, upper = compute_ev_significance([])
+        assert sem == 0.0
+        assert lower == 0.0
+        assert upper == 0.0
+
+    @pytest.mark.test_id("4.4b-NEW-007")
+    def test_compute_wfe_decay_negative(self):
+        # Declining performance
+        wfe_per_fold = [1.0, 0.8, 0.6, 0.4, 0.2]
+        slope, correlation = compute_wfe_decay(wfe_per_fold)
+        assert slope < 0
+        assert correlation < 0
+
+    @pytest.mark.test_id("4.4b-NEW-009")
+    def test_compute_wfe_decay_insufficient_data(self):
+        assert compute_wfe_decay([1.0, 0.8]) == (0.0, 0.0)
+
+    @pytest.mark.test_id("4.4b-NEW-010")
+    def test_build_stitched_result_populates_diagnostics(self):
+        wf_result = _make_wf_result(n_windows=5)
+        ohlcv = _synthetic_ohlcv(100)
+        stitched = build_stitched_result(wf_result, ohlcv)
+        
+        assert stitched.diagnostics is not None
+        assert isinstance(stitched.diagnostics, WalkforwardDiagnostics)
+        assert stitched.diagnostics.risk_adj_wfe >= 0
+        assert math.isfinite(stitched.diagnostics.expected_value)
+        # Since we have 5 windows, parameter_decay should be populated
+        assert stitched.diagnostics.parameter_decay is not None
