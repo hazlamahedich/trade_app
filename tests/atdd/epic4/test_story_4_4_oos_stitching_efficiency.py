@@ -32,10 +32,13 @@ class TestStory44OOSStitching:
     @pytest.mark.p0
     async def test_wfe_computed_correctly(self, wf_windows):
         # Given: IS and OOS returns from walk-forward
+        import math
+
         from trade_advisor.backtest.walkforward.stitch import compute_wfe
 
-        total_is_return = sum(w["is_return"] for w in wf_windows)
-        total_oos_return = sum(w["oos_return"] for w in wf_windows)
+        # Compounding per spec: product(1 + r_i) - 1
+        total_is_return = math.prod(1.0 + w["is_return"] for w in wf_windows) - 1.0
+        total_oos_return = math.prod(1.0 + w["oos_return"] for w in wf_windows) - 1.0
 
         # When: computing WFE ratio
         wfe = compute_wfe(oos_return=total_oos_return, is_return=total_is_return)
@@ -47,11 +50,11 @@ class TestStory44OOSStitching:
     @pytest.mark.test_id("4.4-ATDD-003")
     @pytest.mark.p0
     async def test_wfe_healthy_flag(self):
-        # Given: a WFE >= 0.7
+        # Given: a WFE >= 0.7 and positive IS
         from trade_advisor.backtest.walkforward.stitch import wfe_status
 
         # When: checking status
-        status = wfe_status(0.75)
+        status = wfe_status(0.75, total_is_return=0.2, total_oos_return=0.15)
 
         # Then: status is "healthy"
         assert status == "healthy"
@@ -59,11 +62,11 @@ class TestStory44OOSStitching:
     @pytest.mark.test_id("4.4-ATDD-004")
     @pytest.mark.p0
     async def test_wfe_caution_flag(self):
-        # Given: a WFE between 0.5 and 0.7
+        # Given: a WFE between 0.5 and 0.7 and positive IS
         from trade_advisor.backtest.walkforward.stitch import wfe_status
 
         # When: checking status
-        status = wfe_status(0.6)
+        status = wfe_status(0.6, total_is_return=0.2, total_oos_return=0.12)
 
         # Then: status is "caution"
         assert status == "caution"
@@ -75,24 +78,43 @@ class TestStory44OOSStitching:
         from trade_advisor.backtest.walkforward.stitch import wfe_status
 
         # When: checking status
-        status = wfe_status(0.3)
+        status = wfe_status(0.3, total_is_return=0.2, total_oos_return=0.06)
 
         # Then: status is "unreliable" (UNRELIABLE flag per WFO-5)
         assert status == "unreliable"
+
 
     @pytest.mark.test_id("4.4-ATDD-006")
     @pytest.mark.p1
     async def test_oos_curve_with_baseline_comparison(self, wf_windows):
         # Given: stitched OOS equity and buy-and-hold baseline
-        from trade_advisor.backtest.walkforward.stitch import stitch_oos_equity
+        import pandas as pd
+
+        from trade_advisor.backtest.walkforward.engine import WalkForwardConfig
+        from trade_advisor.backtest.walkforward.stitch import (
+            compute_oos_baseline,
+            stitch_oos_equity,
+        )
 
         oos_segments = [w["oos_equity"] for w in wf_windows]
-        stitched = stitch_oos_equity(oos_segments)
+        # Use common initial cash
+        initial_cash = 100_000.0
+        stitched = stitch_oos_equity(oos_segments, initial_cash=initial_cash)
 
-        # When: comparing against baseline
-        # Then: OOS curve has baseline comparison available
-        assert stitched is not None
-        assert len(stitched) > 0
+        # Mock ohlcv with matching index
+        all_indices = pd.concat([s.to_frame() for s in oos_segments]).index.unique().sort_values()
+        ohlcv = pd.DataFrame({"close": range(len(all_indices))}, index=all_indices)
+        config = WalkForwardConfig(mode="rolling", strategy_type="sma", is_bars=20, oos_bars=10)
+
+        # When: computing baseline
+
+        baseline = compute_oos_baseline(stitched, ohlcv, config)
+
+        # Then: OOS curve and baseline have matching scale and index
+        assert len(baseline) == len(stitched)
+        assert baseline.iloc[0] == pytest.approx(stitched.iloc[0])
+        assert (baseline.index == stitched.index).all()
+
 
     @pytest.mark.test_id("4.4-ATDD-007")
     @pytest.mark.p1

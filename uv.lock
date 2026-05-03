@@ -1771,6 +1771,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-multipart"
+version = "0.0.27"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/9b/f23807317a113dc36e74e75eb265a02dd1a4d9082abc3c1064acd22997c4/python_multipart-0.0.27.tar.gz", hash = "sha256:9870a6a8c5a20a5bf4f07c017bd1489006ff8836cff097b6933355ee2b49b602", size = 44043, upload-time = "2026-04-27T10:51:26.649Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/99/78/4126abcbdbd3c559d43e0db7f7b9173fc6befe45d39a2856cc0b8ec2a5a6/python_multipart-0.0.27-py3-none-any.whl", hash = "sha256:6fccfad17a27334bd0193681b369f476eda3409f17381a2d65aa7df3f7275645", size = 29254, upload-time = "2026-04-27T10:51:24.997Z" },
+]
+
+[[package]]
 name = "pytz"
 version = "2026.1.post1"
 source = { registry = "https://pypi.org/simple" }
@@ -2122,6 +2131,21 @@ wheels = [
 ]
 
 [[package]]
+name = "sse-starlette"
+version = "1.8.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "fastapi" },
+    { name = "starlette" },
+    { name = "uvicorn" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/18/5b/f703fd3d1b3207e49b6f992b6c4a72b79a3602129f8ebb0dd8feaa8bc52f/sse_starlette-1.8.2.tar.gz", hash = "sha256:e0f9b8dec41adc092a0a6e0694334bd3cfd3084c44c497a6ebc1fb4bdd919acd", size = 17159, upload-time = "2023-11-25T09:53:47.105Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/7e/d6087916bf58a4343459b47807a116a3a755e6ddd4857f375547e00f6252/sse_starlette-1.8.2-py3-none-any.whl", hash = "sha256:70cc7ef5aca4abe8a25dec1284cce4fe644dd7bf0c406d3e852e516092b7f849", size = 8928, upload-time = "2023-11-25T09:53:44.857Z" },
+]
+
+[[package]]
 name = "starlette"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2246,8 +2270,10 @@ dependencies = [
     { name = "pydantic" },
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
+    { name = "python-multipart" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "sse-starlette" },
     { name = "streamlit" },
     { name = "structlog" },
     { name = "typer" },
@@ -2290,9 +2316,11 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0,<6" },
     { name = "pytest-xdist", marker = "extra == 'dev'", specifier = ">=3.6,<4" },
     { name = "python-dotenv", specifier = ">=1.0,<2" },
+    { name = "python-multipart", specifier = ">=0.0.7,<1" },
     { name = "pyyaml", specifier = ">=6.0,<7" },
     { name = "rich", specifier = ">=13.7,<14" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5,<1" },
+    { name = "sse-starlette", specifier = ">=1.6,<2" },
     { name = "streamlit", specifier = ">=1.36,<2" },
     { name = "structlog", specifier = ">=24.1,<26" },
     { name = "typer", specifier = ">=0.12,<1" },
