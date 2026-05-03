@@ -16,6 +16,7 @@ Architecture decisions (from adversarial review):
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
@@ -23,7 +24,13 @@ import pandas as pd
 from pydantic import BaseModel, Field
 
 from trade_advisor.backtest.engine import BacktestResult, run_backtest
+from trade_advisor.backtest.walkforward.optimize import (
+    OptimizationConfig,
+    OptimizationResult,
+    optimize_is_window,
+)
 from trade_advisor.config import BacktestConfig
+from trade_advisor.infra.seed import SeedManager
 
 if False:
     from trade_advisor.strategies.interface import Strategy
@@ -42,6 +49,7 @@ class WalkForwardConfig(BaseModel):
     strategy_type: str = "sma"
     strategy_params: dict[str, Any] = Field(default_factory=dict)
     backtest: BacktestConfig = BacktestConfig()  # type: ignore[call-arg]
+    optimization: OptimizationConfig | None = None
 
 
 @dataclass(frozen=True)
@@ -80,6 +88,7 @@ class WindowResult:
     is_return: float
     oos_return: float
     status: Literal["OK", "INCONCLUSIVE"] = "OK"
+    optimization_result: OptimizationResult | None = None
 
 
 @dataclass
@@ -147,11 +156,20 @@ def _resolve_strategy(config: WalkForwardConfig) -> Strategy:
     raise WalkForwardError(f"Unknown strategy_type: {config.strategy_type!r}")
 
 
+def _build_strategy_factory(strategy_type: str) -> Callable[[dict[str, Any]], Strategy]:
+    if strategy_type == "sma":
+        from trade_advisor.strategies.sma_cross import SmaCross
+
+        return lambda params: SmaCross(**params)
+    raise WalkForwardError(f"Unknown strategy_type: {strategy_type!r}")
+
+
 def _run_single_window(
     strategy: Strategy,
     ohlcv: pd.DataFrame,
     boundary: DataBoundary,
     config: WalkForwardConfig,
+    optimization_result: OptimizationResult | None = None,
 ) -> WindowResult:
     warmup_period = getattr(strategy, "warmup_period", 0)
     is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
@@ -194,6 +212,7 @@ def _run_single_window(
         is_return=is_return,
         oos_return=oos_return,
         status=status,
+        optimization_result=optimization_result,
     )
 
 
@@ -232,8 +251,6 @@ def walk_forward(
     if data_len < min_required:
         raise WalkForwardError(f"Need >= {min_required} bars, got {data_len}")
 
-    strategy = _resolve_strategy(config)
-
     if config.mode == "rolling":
         boundaries = _generate_rolling_boundaries(
             data_len, config.is_bars, config.oos_bars, config.gap_bars
@@ -244,8 +261,40 @@ def walk_forward(
         )
 
     windows: list[WindowResult] = []
-    for boundary in boundaries:
-        windows.append(_run_single_window(strategy, ohlcv, boundary, config))
+    if config.optimization is not None:
+        if not isinstance(config.optimization, OptimizationConfig):
+            raise WalkForwardError(
+                f"config.optimization must be OptimizationConfig, got {type(config.optimization).__name__}"
+            )
+        seed_mgr = SeedManager(global_seed=config.seed)
+        strategy_factory = _build_strategy_factory(config.strategy_type)
+    else:
+        strategy = _resolve_strategy(config)
+
+    for window_idx, boundary in enumerate(boundaries):
+        opt_result: OptimizationResult | None = None
+        if config.optimization is not None:
+            is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
+            window_seed = seed_mgr.derive_experiment_seed(f"wf_window_{window_idx}")
+            try:
+                opt_result = optimize_is_window(
+                    is_slice,
+                    config.optimization,
+                    strategy_factory,
+                    config.backtest,
+                    seed=window_seed,
+                )
+            except Exception as exc:
+                raise WalkForwardError(
+                    f"Optimization failed for window {window_idx}: {exc}"
+                ) from exc
+            if not opt_result.best_params:
+                raise WalkForwardError(
+                    f"Window {window_idx}: optimization produced no valid params"
+                )
+            strategy = strategy_factory(opt_result.best_params)
+
+        windows.append(_run_single_window(strategy, ohlcv, boundary, config, opt_result))
 
     last_boundary = boundaries[-1] if boundaries else None
     discarded_bars = data_len - last_boundary.oos_end if last_boundary else data_len

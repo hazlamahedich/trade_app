@@ -11,13 +11,25 @@ from trade_advisor.backtest.walkforward.engine import (
     WindowResult,
     walk_forward,
 )
+from trade_advisor.backtest.walkforward.optimize import (
+    OptimizationConfig,
+    OptimizationResult,
+    PruningConfig,
+    TrialResult,
+    optimize_is_window,
+)
 
 __all__ = [
     "DataBoundary",
+    "OptimizationConfig",
+    "OptimizationResult",
+    "PruningConfig",
+    "TrialResult",
     "WalkForwardConfig",
     "WalkForwardError",
     "WalkForwardResult",
     "WindowResult",
     "async_run_walkforward",
+    "optimize_is_window",
     "walk_forward",
 ]
