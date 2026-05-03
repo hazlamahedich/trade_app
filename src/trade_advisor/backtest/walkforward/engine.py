@@ -11,17 +11,20 @@ Architecture decisions (from adversarial review):
 - DataBoundary is a frozen dataclass with invariant validation.
 - IS→OOS transition gap: 1 bar (prevents serial correlation leakage).
 - Empty OOS window → INCONCLUSIVE marker, not crash.
+- Frozen params mode (Story 4.3): OOS uses prior window's best_params.
 """
 
 from __future__ import annotations
 
+import copy
+import logging
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import pandas as pd
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from trade_advisor.backtest.engine import BacktestResult, run_backtest
 from trade_advisor.backtest.walkforward.optimize import (
@@ -34,6 +37,8 @@ from trade_advisor.infra.seed import SeedManager
 
 if False:
     from trade_advisor.strategies.interface import Strategy
+
+logger = logging.getLogger(__name__)
 
 
 class WalkForwardError(Exception):
@@ -50,6 +55,13 @@ class WalkForwardConfig(BaseModel):
     strategy_params: dict[str, Any] = Field(default_factory=dict)
     backtest: BacktestConfig = BacktestConfig()  # type: ignore[call-arg]
     optimization: OptimizationConfig | None = None
+    frozen_params_mode: bool = False
+
+    @model_validator(mode="after")
+    def _validate_frozen_params(self) -> WalkForwardConfig:
+        if self.frozen_params_mode and self.optimization is None:
+            raise WalkForwardError("frozen_params_mode requires optimization to be configured")
+        return self
 
 
 @dataclass(frozen=True)
@@ -87,8 +99,11 @@ class WindowResult:
     oos_sharpe: float
     is_return: float
     oos_return: float
-    status: Literal["OK", "INCONCLUSIVE"] = "OK"
+    status: Literal["OK", "INCONCLUSIVE", "DEGRADED"] = "OK"
     optimization_result: OptimizationResult | None = None
+    frozen_oos_params: dict[str, Any] | None = None
+    frozen_params_source_window: int | None = None
+    frozen_fallback: bool = False
 
 
 @dataclass
@@ -97,6 +112,7 @@ class WalkForwardResult:
     windows: list[WindowResult]
     config: WalkForwardConfig
     discarded_bars: int = 0
+    baseline_params: dict[str, Any] | None = None
 
 
 def _generate_rolling_boundaries(
@@ -170,22 +186,116 @@ def _run_single_window(
     boundary: DataBoundary,
     config: WalkForwardConfig,
     optimization_result: OptimizationResult | None = None,
+    oos_strategy: Strategy | None = None,
+    frozen_oos_params: dict[str, Any] | None = None,
+    frozen_params_source_window: int | None = None,
+    is_fallback: bool = False,
 ) -> WindowResult:
-    warmup_period = getattr(strategy, "warmup_period", 0)
+    if is_fallback:
+        logger.warning(
+            "ta:walkforward:frozen_fallback window_idx=%s boundary=%s",
+            frozen_params_source_window,
+            boundary,
+        )
+        is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
+        oos_slice = ohlcv.iloc[boundary.oos_start : boundary.oos_end].copy()
+        actual_oos_strategy = oos_strategy if oos_strategy is not None else strategy
+        oos_warmup = getattr(actual_oos_strategy, "warmup_period", 0)
+        oos_len = boundary.oos_end - boundary.oos_start
+
+        if oos_len < oos_warmup:
+            return WindowResult(
+                boundary=boundary,
+                is_segment=is_slice,
+                oos_segment=oos_slice,
+                is_equity=pd.Series(dtype="float64", name="equity"),
+                oos_equity=pd.Series(dtype="float64", name="equity"),
+                is_sharpe=float("nan"),
+                oos_sharpe=float("nan"),
+                is_return=float("nan"),
+                oos_return=float("nan"),
+                status="INCONCLUSIVE",
+                optimization_result=optimization_result,
+                frozen_oos_params=frozen_oos_params,
+                frozen_params_source_window=frozen_params_source_window,
+                frozen_fallback=True,
+            )
+
+        if oos_warmup > 0:
+            warmup_start = max(boundary.oos_start - oos_warmup, 0)
+            extended_oos = ohlcv.iloc[warmup_start : boundary.oos_end].copy()
+            extended_signals = actual_oos_strategy.generate_signals(extended_oos)
+            n_oos = boundary.oos_end - boundary.oos_start
+            oos_signals = extended_signals.iloc[-n_oos:].copy()
+            oos_signals.index = oos_slice.index
+        else:
+            oos_signals = actual_oos_strategy.generate_signals(oos_slice)
+
+        oos_bt = run_backtest(oos_slice, oos_signals, config.backtest)
+        oos_sharpe, oos_return = _compute_metrics(oos_bt)
+
+        if len(oos_bt.trades) == 0 or not _metrics_sane(oos_sharpe, oos_return):
+            oos_sharpe = float("nan")
+            oos_return = float("nan")
+            fb_status: Literal["OK", "INCONCLUSIVE", "DEGRADED"] = "INCONCLUSIVE"
+        else:
+            fb_status = "DEGRADED"
+
+        return WindowResult(
+            boundary=boundary,
+            is_segment=is_slice,
+            oos_segment=oos_slice,
+            is_equity=pd.Series(dtype="float64", name="equity"),
+            oos_equity=oos_bt.equity,
+            is_sharpe=float("nan"),
+            oos_sharpe=oos_sharpe,
+            is_return=float("nan"),
+            oos_return=oos_return,
+            status=fb_status,
+            optimization_result=optimization_result,
+            frozen_oos_params=frozen_oos_params,
+            frozen_params_source_window=frozen_params_source_window,
+            frozen_fallback=True,
+        )
+
+    actual_oos_strategy = oos_strategy if oos_strategy is not None else strategy
+
+    oos_warmup = getattr(actual_oos_strategy, "warmup_period", 0)
+
     is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
     oos_slice = ohlcv.iloc[boundary.oos_start : boundary.oos_end].copy()
 
     is_signals = strategy.generate_signals(is_slice)
 
-    if warmup_period > 0:
-        warmup_start = max(boundary.oos_start - warmup_period, 0)
+    oos_len = boundary.oos_end - boundary.oos_start
+    if oos_len < oos_warmup:
+        is_bt = run_backtest(is_slice, is_signals, config.backtest)
+        is_sharpe, is_return = _compute_metrics(is_bt)
+        return WindowResult(
+            boundary=boundary,
+            is_segment=is_slice,
+            oos_segment=oos_slice,
+            is_equity=is_bt.equity,
+            oos_equity=pd.Series(dtype="float64", name="equity"),
+            is_sharpe=is_sharpe,
+            oos_sharpe=float("nan"),
+            is_return=is_return,
+            oos_return=float("nan"),
+            status="INCONCLUSIVE",
+            optimization_result=optimization_result,
+            frozen_oos_params=frozen_oos_params,
+            frozen_params_source_window=frozen_params_source_window,
+        )
+
+    if oos_warmup > 0:
+        warmup_start = max(boundary.oos_start - oos_warmup, 0)
         extended_oos = ohlcv.iloc[warmup_start : boundary.oos_end].copy()
-        extended_signals = strategy.generate_signals(extended_oos)
+        extended_signals = actual_oos_strategy.generate_signals(extended_oos)
         n_oos = boundary.oos_end - boundary.oos_start
         oos_signals = extended_signals.iloc[-n_oos:].copy()
         oos_signals.index = oos_slice.index
     else:
-        oos_signals = strategy.generate_signals(oos_slice)
+        oos_signals = actual_oos_strategy.generate_signals(oos_slice)
 
     is_bt = run_backtest(is_slice, is_signals, config.backtest)
     oos_bt = run_backtest(oos_slice, oos_signals, config.backtest)
@@ -195,7 +305,7 @@ def _run_single_window(
 
     n_oos_trades = len(oos_bt.trades)
     if n_oos_trades == 0 or not _metrics_sane(oos_sharpe, oos_return):
-        status: Literal["OK", "INCONCLUSIVE"] = "INCONCLUSIVE"
+        status: Literal["OK", "INCONCLUSIVE", "DEGRADED"] = "INCONCLUSIVE"
         oos_sharpe = float("nan")
         oos_return = float("nan")
     else:
@@ -213,6 +323,8 @@ def _run_single_window(
         oos_return=oos_return,
         status=status,
         optimization_result=optimization_result,
+        frozen_oos_params=frozen_oos_params,
+        frozen_params_source_window=frozen_params_source_window,
     )
 
 
@@ -261,6 +373,13 @@ def walk_forward(
         )
 
     windows: list[WindowResult] = []
+    baseline_params: dict[str, Any] | None = None
+    if config.frozen_params_mode:
+        baseline_params = dict(config.strategy_params)
+
+    prior_best_params: dict[str, Any] | None = None
+    prior_source_window: int | None = None
+
     if config.optimization is not None:
         if not isinstance(config.optimization, OptimizationConfig):
             raise WalkForwardError(
@@ -269,10 +388,27 @@ def walk_forward(
         seed_mgr = SeedManager(global_seed=config.seed)
         strategy_factory = _build_strategy_factory(config.strategy_type)
     else:
-        strategy = _resolve_strategy(config)
+        fallback_strategy = _resolve_strategy(config)
 
     for window_idx, boundary in enumerate(boundaries):
         opt_result: OptimizationResult | None = None
+        oos_strategy: Strategy | None = None
+        frozen_oos: dict[str, Any] | None = None
+        frozen_source: int | None = None
+
+        if config.frozen_params_mode:
+            if not baseline_params:
+                raise WalkForwardError("frozen_params_mode requires non-empty strategy_params")
+            if prior_best_params is not None:
+                oos_params: dict[str, Any] = copy.deepcopy(prior_best_params)
+                source_window: int | None = prior_source_window
+            else:
+                oos_params = copy.deepcopy(baseline_params)
+                source_window = None
+            oos_strategy = strategy_factory(oos_params)
+            frozen_oos = copy.deepcopy(oos_params)
+            frozen_source = source_window
+
         if config.optimization is not None:
             is_slice = ohlcv.iloc[boundary.is_start : boundary.is_end].copy()
             window_seed = seed_mgr.derive_experiment_seed(f"wf_window_{window_idx}")
@@ -288,13 +424,46 @@ def walk_forward(
                 raise WalkForwardError(
                     f"Optimization failed for window {window_idx}: {exc}"
                 ) from exc
-            if not opt_result.best_params:
-                raise WalkForwardError(
-                    f"Window {window_idx}: optimization produced no valid params"
-                )
-            strategy = strategy_factory(opt_result.best_params)
 
-        windows.append(_run_single_window(strategy, ohlcv, boundary, config, opt_result))
+            if opt_result.best_params:
+                is_strategy = strategy_factory(opt_result.best_params)
+                prior_best_params = copy.deepcopy(opt_result.best_params)
+                prior_source_window = window_idx
+            else:
+                if config.frozen_params_mode:
+                    is_strategy = strategy_factory(oos_params)
+                    wr = _run_single_window(
+                        is_strategy,
+                        ohlcv,
+                        boundary,
+                        config,
+                        opt_result,
+                        oos_strategy=oos_strategy,
+                        frozen_oos_params=copy.deepcopy(oos_params),
+                        frozen_params_source_window=frozen_source,
+                        is_fallback=True,
+                    )
+                    windows.append(wr)
+                    continue
+                else:
+                    raise WalkForwardError(
+                        f"Window {window_idx}: optimization produced no valid params"
+                    )
+        else:
+            is_strategy = fallback_strategy
+
+        windows.append(
+            _run_single_window(
+                is_strategy,
+                ohlcv,
+                boundary,
+                config,
+                opt_result,
+                oos_strategy=oos_strategy,
+                frozen_oos_params=frozen_oos,
+                frozen_params_source_window=frozen_source,
+            )
+        )
 
     last_boundary = boundaries[-1] if boundaries else None
     discarded_bars = data_len - last_boundary.oos_end if last_boundary else data_len
@@ -304,4 +473,5 @@ def walk_forward(
         windows=windows,
         config=config,
         discarded_bars=discarded_bars,
+        baseline_params=baseline_params,
     )

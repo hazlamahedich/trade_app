@@ -37,6 +37,11 @@ async def async_run_walkforward(
     cancel_check: Callable[[], bool] | None = None,
     run_id: str = "",
 ) -> WalkForwardResult:
+    if config.frozen_params_mode:
+        raise WalkForwardError(
+            "frozen_params_mode requires sequential execution — use sync walk_forward()"
+        )
+
     data_len = len(ohlcv)
     min_required = config.is_bars + config.gap_bars + config.oos_bars
     if data_len < min_required:

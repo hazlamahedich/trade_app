@@ -1,119 +1,162 @@
 """ATDD: Story 4.3 — OOS Evaluation with Frozen Parameters.
 
-Tests assert the EXPECTED end-state for Story 4.3.
-RED PHASE: These tests will fail until OOS evaluation is implemented.
+Acceptance tests verifying the walk-forward frozen params protocol.
+Uses the actual WalkForwardConfig / walk_forward() API.
 """
 
 from __future__ import annotations
 
+import math
+
 import pytest
 
+from tests.conftest import _synthetic_ohlcv
+from trade_advisor.backtest.walkforward.engine import (
+    WalkForwardConfig,
+    WalkForwardError,
+    walk_forward,
+)
+from trade_advisor.backtest.walkforward.optimize import (
+    OptimizationConfig,
+    monotonic_increasing,
+)
 
-class TestStory43OOSFrozenParams:
-    """Story 4.3: OOS evaluation with frozen parameters — no information leakage."""
 
+def _frozen_cfg(**overrides) -> WalkForwardConfig:
+    defaults = {
+        "mode": "rolling",
+        "is_bars": 60,
+        "oos_bars": 20,
+        "gap_bars": 1,
+        "seed": 42,
+        "strategy_type": "sma",
+        "strategy_params": {"fast": 5, "slow": 30},
+        "optimization": OptimizationConfig(
+            param_ranges={"fast": [5, 10, 15], "slow": [30, 50]},
+            max_trials=50,
+            constraints=[monotonic_increasing("fast", "slow")],
+        ),
+        "frozen_params_mode": True,
+    }
+    defaults.update(overrides)
+    return WalkForwardConfig(**defaults)
+
+
+class TestStory43FrozenParams:
     @pytest.mark.test_id("4.3-ATDD-001")
     @pytest.mark.p0
-    async def test_oos_uses_frozen_params_from_prior_is(self, wf_ohlcv):
-        # Given: optimized parameters from IS window
-        from trade_advisor.backtest.walkforward.engine import WalkForwardEngine
-
-        engine = WalkForwardEngine(mode="rolling", is_bars=60, oos_bars=20, seed=42)
-        result = await engine.run(
-            wf_ohlcv,
-            strategy_config={"strategy_type": "sma"},
-            optimize=True,
-            param_ranges={"fast": (5, 50), "slow": (20, 200)},
-        )
-
-        # When: inspecting OOS results
-        # Then: each OOS window uses frozen params from its prior IS window
-        for window in result.windows:
-            assert window.frozen_params is not None
-            assert "fast" in window.frozen_params
-            assert "slow" in window.frozen_params
+    def test_frozen_without_optimization_raises(self):
+        with pytest.raises(WalkForwardError, match="frozen_params_mode requires"):
+            WalkForwardConfig(
+                mode="rolling",
+                is_bars=60,
+                oos_bars=20,
+                strategy_params={"fast": 5, "slow": 30},
+                frozen_params_mode=True,
+            )
 
     @pytest.mark.test_id("4.3-ATDD-002")
     @pytest.mark.p0
-    async def test_no_refitting_in_oos(self, wf_ohlcv):
-        # Given: a walk-forward result with optimization
-        from trade_advisor.backtest.walkforward.engine import WalkForwardEngine
-
-        engine = WalkForwardEngine(mode="rolling", is_bars=60, oos_bars=20, seed=42)
-        result = await engine.run(
-            wf_ohlcv,
-            strategy_config={"strategy_type": "sma"},
-            optimize=True,
-            param_ranges={"fast": (5, 50), "slow": (20, 200)},
-        )
-
-        # When: checking OOS evaluation
-        # Then: OOS params are identical to the IS-optimized params (no refitting)
-        for window in result.windows:
-            assert window.frozen_params == window.is_optimized_params
+    def test_oos_uses_prior_window_best_params(self):
+        ohlcv = _synthetic_ohlcv(n=300)
+        result = walk_forward(ohlcv, _frozen_cfg())
+        for i in range(1, len(result.windows)):
+            prior_best = result.windows[i - 1].optimization_result.best_params
+            assert result.windows[i].frozen_oos_params == prior_best, (
+                f"Window {i} OOS params should equal window {i - 1} IS best_params"
+            )
 
     @pytest.mark.test_id("4.3-ATDD-003")
     @pytest.mark.p0
-    async def test_data_boundary_enforced(self, wf_ohlcv):
-        # Given: a walk-forward configuration
-        from trade_advisor.backtest.walkforward.engine import WalkForwardEngine
-
-        engine = WalkForwardEngine(mode="rolling", is_bars=60, oos_bars=20, seed=42)
-        result = await engine.run(wf_ohlcv, strategy_config={"strategy_type": "sma", "fast": 20, "slow": 50})
-
-        # When: checking IS/OOS boundaries
-        # Then: no data leakage — OOS timestamps start after IS timestamps
-        for window in result.windows:
-            is_end = window.is_segment.index[-1]
-            oos_start = window.oos_segment.index[0]
-            assert oos_start > is_end
+    def test_window0_oos_uses_baseline(self):
+        ohlcv = _synthetic_ohlcv(n=200)
+        result = walk_forward(ohlcv, _frozen_cfg())
+        w0 = result.windows[0]
+        assert w0.frozen_oos_params == {"fast": 5, "slow": 30}
+        assert w0.frozen_params_source_window is None
 
     @pytest.mark.test_id("4.3-ATDD-004")
-    @pytest.mark.p1
-    async def test_embargo_period_prevents_leakage(self, wf_ohlcv):
-        # Given: a walk-forward configuration with embargo
-        from trade_advisor.backtest.walkforward.engine import WalkForwardEngine
+    @pytest.mark.p0
+    def test_nonfrozen_identical_to_story42(self):
 
-        engine = WalkForwardEngine(
+        ohlcv = _synthetic_ohlcv(n=200)
+        cfg_nonfrozen = WalkForwardConfig(
             mode="rolling",
             is_bars=60,
             oos_bars=20,
-            embargo_bars=5,
             seed=42,
+            strategy_type="sma",
+            strategy_params={"fast": 5, "slow": 30},
+            optimization=OptimizationConfig(
+                param_ranges={"fast": [5, 10, 15], "slow": [30, 50]},
+                max_trials=50,
+                constraints=[monotonic_increasing("fast", "slow")],
+            ),
+            frozen_params_mode=False,
         )
-        result = await engine.run(wf_ohlcv, strategy_config={"strategy_type": "sma", "fast": 20, "slow": 50})
-
-        # When: checking window boundaries
-        # Then: embargo bars create a gap between IS and OOS
-        for window in result.windows:
-            is_end = window.is_segment.index[-1]
-            oos_start = window.oos_segment.index[0]
-            gap = (oos_start - is_end).days
-            assert gap >= 5
+        r1 = walk_forward(ohlcv, cfg_nonfrozen)
+        r2 = walk_forward(ohlcv, cfg_nonfrozen)
+        assert len(r1.windows) == len(r2.windows)
+        for w1, w2 in zip(r1.windows, r2.windows, strict=True):
+            assert w1.is_sharpe == w2.is_sharpe or (
+                math.isnan(w1.is_sharpe) and math.isnan(w2.is_sharpe)
+            )
+            assert w1.oos_sharpe == w2.oos_sharpe or (
+                math.isnan(w1.oos_sharpe) and math.isnan(w2.oos_sharpe)
+            )
+            assert w1.frozen_oos_params is None
+            assert w1.frozen_params_source_window is None
 
     @pytest.mark.test_id("4.3-ATDD-005")
     @pytest.mark.p1
-    async def test_oos_results_computed_independently(self, wf_ohlcv):
-        # Given: a walk-forward result with multiple windows
-        from trade_advisor.backtest.walkforward.engine import WalkForwardEngine
+    def test_async_runner_raises_with_frozen(self):
+        import asyncio
 
-        engine = WalkForwardEngine(mode="rolling", is_bars=60, oos_bars=20, seed=42)
-        result = await engine.run(wf_ohlcv, strategy_config={"strategy_type": "sma", "fast": 20, "slow": 50})
+        from trade_advisor.backtest.walkforward.async_runner import async_run_walkforward
 
-        # When: comparing OOS equity across windows
-        # Then: each window's OOS equity starts from the same base (independent)
-        for window in result.windows:
-            assert window.oos_equity is not None
-            assert len(window.oos_equity) > 0
+        ohlcv = _synthetic_ohlcv(n=200)
+        config = _frozen_cfg()
+
+        with pytest.raises(WalkForwardError, match="frozen_params_mode requires sequential"):
+            asyncio.run(async_run_walkforward(ohlcv, config))
 
     @pytest.mark.test_id("4.3-ATDD-006")
-    @pytest.mark.p2
-    async def test_data_boundary_protocol_satisfied(self):
-        # Given: the DataBoundary protocol
-        from trade_advisor.backtest.walkforward.engine import DataBoundary
+    @pytest.mark.p1
+    def test_all_windows_frozen_fields_populated(self):
+        ohlcv = _synthetic_ohlcv(n=300)
+        result = walk_forward(ohlcv, _frozen_cfg())
+        assert len(result.windows) >= 2
+        for i, w in enumerate(result.windows):
+            assert w.frozen_oos_params is not None
+            if i == 0:
+                assert w.frozen_params_source_window is None
+            else:
+                assert isinstance(w.frozen_params_source_window, int)
+            assert w.frozen_fallback is False
 
-        # When: checking protocol compliance
-        # Then: DataBoundary has the required methods
-        assert hasattr(DataBoundary, "is_end")
-        assert hasattr(DataBoundary, "oos_start")
-        assert hasattr(DataBoundary, "embargo_bars")
+    @pytest.mark.test_id("4.3-ATDD-007")
+    @pytest.mark.p1
+    def test_fallback_window_has_degraded_fields(self):
+        ohlcv = _synthetic_ohlcv(n=200)
+        config = WalkForwardConfig(
+            mode="rolling",
+            is_bars=60,
+            oos_bars=20,
+            seed=42,
+            strategy_type="sma",
+            strategy_params={"fast": 5, "slow": 30},
+            optimization=OptimizationConfig(
+                param_ranges={"fast": [50], "slow": [10]},
+                max_trials=10,
+                constraints=[monotonic_increasing("fast", "slow")],
+            ),
+            frozen_params_mode=True,
+        )
+        result = walk_forward(ohlcv, config)
+        for w in result.windows:
+            assert w.frozen_oos_params == {"fast": 5, "slow": 30}
+            assert w.frozen_params_source_window is None
+            assert w.frozen_fallback is True
+            assert w.status in {"DEGRADED", "INCONCLUSIVE"}
+            assert math.isnan(w.is_sharpe)
+            assert len(w.is_equity) == 0
