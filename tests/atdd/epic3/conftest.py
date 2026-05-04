@@ -405,7 +405,7 @@ async def db_with_stale_fingerprint():
             status="completed",
             parent_run_id=None,
             git_commit="abc123def456",
-            data_fingerprint="stale_fingerprint_value",
+            data_fingerprint="fp_stale_mismatch",
             python_version="3.12",
             package_versions="{}",
             is_dirty=False,

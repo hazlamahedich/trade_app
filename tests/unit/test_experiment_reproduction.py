@@ -193,8 +193,12 @@ class TestCheckDataFreshness:
         assert freshness.fingerprint_method == "parquet_hash_recompute"
 
     def test_changed_fingerprint_shows_warning(self, db_empty):
-        _insert_run(db_empty, "run_stale", data_fp="stale_fingerprint_value")
-        freshness = check_data_freshness(db_empty, "run_stale")
+        _insert_run(db_empty, "run_stale", data_fp="original_fp")
+        with patch(
+            "trade_advisor.experiments.reproduction._recompute_parquet_fingerprint",
+            return_value="different_fp",
+        ):
+            freshness = check_data_freshness(db_empty, "run_stale")
         assert freshness.has_changed is True
         assert freshness.warning is not None
         assert "changed" in freshness.warning.lower()
@@ -437,18 +441,22 @@ class TestWebAPIReproduce:
 
         cfg = _config_dict()
         _insert_run(
-            db_empty, "run_stale_api", cfg_json=json.dumps(cfg), data_fp="stale_fingerprint_value"
+            db_empty, "run_stale_api", cfg_json=json.dumps(cfg), data_fp="original_fp"
         )
         original_db = getattr(app.state, "db", None)
         app.state.db = db_empty
         try:
-            transport = ASGITransport(app=app)
-            async with AsyncClient(transport=transport, base_url="http://test") as client:
-                await client.get("/health")
-                resp = await client.post("/api/experiments/run_stale_api/reproduce")
-                assert resp.status_code == 200
-                data = resp.json()
-                assert data.get("data_freshness_warning") is not None
+            with patch(
+                "trade_advisor.experiments.reproduction._recompute_parquet_fingerprint",
+                return_value="different_fp",
+            ):
+                transport = ASGITransport(app=app)
+                async with AsyncClient(transport=transport, base_url="http://test") as client:
+                    await client.get("/health")
+                    resp = await client.post("/api/experiments/run_stale_api/reproduce")
+                    assert resp.status_code == 200
+                    data = resp.json()
+                    assert data.get("data_freshness_warning") is not None
         finally:
             app.state.db = original_db
 

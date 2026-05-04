@@ -37,6 +37,7 @@ ta dashboard                              # Streamlit UI
 - **Strategy pattern**: Subclass `strategies/base.py::Strategy`, implement `generate_signals()` returning `float` Series (range `[-1.0, +1.0]`). Must shift by 1 bar to prevent lookahead bias.
 - **Backtest engine**: `backtest/engine.py` — vectorized pandas/numpy (not vectorbt yet). Signal executed at same bar's close.
 - **Experiment tracking**: DuckDB-backed experiment layer in `experiments/` (tracker, lineage DAG, compare, reproduction); MLflow in `tracking/mlflow_utils.py`, local file store at `mlruns/`
+- **Walk-forward validation**: `backtest/walkforward/` — engine.py (sync core), async_runner.py (async/SSE bridge), optimize.py (grid search), stitch.py (OOS equity + WFE + EV + DSR), deflated.py (Deflated Sharpe Ratio + TrialStats)
 - **Web layer**: FastAPI with HTMX + Preact islands, Jinja2 templates in `web/templates/`
 - **Decimal convention**: All financial values use `Decimal` via `DecimalStr` type (see `core/types.py`). Cross float boundary only via `from_float()`/`to_float()`.
 
@@ -60,7 +61,7 @@ BMAD planning docs live in `_bmad-output/planning-artifacts/`:
 - `ux-design-specification.md` — UX flows and components
 - `implementation-readiness-report-2026-04-24.md` — readiness assessment (90/100, READY)
 
-Read these before starting implementation work. The project has completed Epics 1–3 (all stories done, ~1700 tests passing). Epic 4 (walk-forward + ML integration) is next.
+Read these before starting implementation work. The project has completed Epics 1–4 (all stories done, ~1924 tests passing). Epic 5 (feature engineering + ML integration) is next.
 
 ## Toolchain Integrations
 
@@ -82,3 +83,8 @@ Read these before starting implementation work. The project has completed Epics 
 - `get_api_key(provider)` is in `core/secrets.py` and re-exported from `config.py`
 - Experiment modules accept `db: DatabaseReader` (Protocol from `infra/protocols.py`), not `DatabaseManager` directly — use async `read()`/`write()`/`write_many()` for DB access; sync `_execute_read()` for read-only helpers called from thread-pool contexts
 - `reproduce_run()` is async — all callers must `await` it
+- `frozen_params_mode=True` with `async_run_walkforward()` raises `WalkForwardError` — use sync `walk_forward()` instead. Epic 5 needs two-pass architecture for async + frozen params
+- `DSR_SIGNIFICANCE_THRESHOLD` is no longer a module constant — use `WFEThresholds.dsr_significance` (default 0.95)
+- `stale_fingerprint_value` marker removed from reproduction.py — data freshness now uses real Parquet hash comparison
+- Walk-forward `sr_variance` is annualized (Var(SR_ann) = 252 * Var(SR_daily)) — de-annualize via `/ 252.0` before using with daily Sharpe
+- DSR is Sharpe-only — `compute_dsr` gated by `optimization.metric == "sharpe"` in `build_stitched_result`

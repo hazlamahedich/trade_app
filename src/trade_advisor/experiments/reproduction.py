@@ -139,16 +139,6 @@ def check_data_freshness(db: DatabaseReader, run_id: str) -> DataFreshness:
     if stored_fp is None:
         return DataFreshness(fingerprint_method="parquet_hash_recompute")
 
-    stale_marker = "stale_fingerprint_value"
-    if str(stored_fp) == stale_marker:
-        return DataFreshness(
-            has_changed=True,
-            warning="Data snapshot has changed since original run. Results may differ.",
-            original_fingerprint=stale_marker,
-            current_fingerprint=stale_marker,
-            fingerprint_method="parquet_hash_recompute",
-        )
-
     current_fp = _recompute_parquet_fingerprint(config_json_raw)
 
     if current_fp is not None and current_fp != str(stored_fp):

@@ -24,6 +24,7 @@ log = logging.getLogger(__name__)
 class WFEThresholds:
     healthy_min: float = 0.7
     caution_min: float = 0.5
+    dsr_significance: float = 0.95
 
     def __post_init__(self) -> None:
         if self.healthy_min <= self.caution_min:
@@ -31,9 +32,11 @@ class WFEThresholds:
                 f"WFEThresholds invalid: healthy_min ({self.healthy_min}) "
                 f"must be > caution_min ({self.caution_min})"
             )
-
-
-DSR_SIGNIFICANCE_THRESHOLD = 0.95
+        if not (0.0 < self.dsr_significance < 1.0):
+            raise ValueError(
+                f"WFEThresholds invalid: dsr_significance ({self.dsr_significance}) "
+                f"must be in (0.0, 1.0)"
+            )
 
 
 @dataclass
@@ -324,24 +327,28 @@ def build_stitched_result(
     dsr_significant = False
     dsr_warning = None
 
+    effective_thresholds = thresholds or WFEThresholds()
+
     n_trials = total_trials_override if total_trials_override is not None else result.total_trials
 
-    # Consensus: Only compute DSR if we optimized for Sharpe to ensure statistical validity
+    # Design Decision: DSR only computed for Sharpe-optimized strategies.
+    # Non-Sharpe metrics (total return, Sortino) violate the Sharpe distribution
+    # assumptions in Bailey & López de Prado (2014). Epic 5 may add a
+    # metric-to-Sharpe conversion layer if needed.
     is_sharpe_opt = result.config.optimization and result.config.optimization.metric == "sharpe"
 
     if is_sharpe_opt and n_trials > 0 and len(active_bar_returns) >= 2:
-        # AC-1: DSR requires daily (per-bar) returns and consistent Sharpe scaling.
-        # ev here is the arithmetic mean of bar returns (daily).
+        # Design Decision: DSR uses daily (per-bar) Sharpe, not annualized.
+        # sr_variance from engine is annualized (Var(SR_ann) = 252 * Var(SR_daily)),
+        # so we de-annualize to match the daily Sharpe computed from bar returns.
         daily_std = np.std(active_bar_returns, ddof=1)
         daily_sharpe = ev / daily_std if daily_std > 0 else 0.0
 
         try:
-            # result.sr_variance is accumulated from annualized Sharpe ratios (sqrt(252)).
-            # Var(SR_ann) = 252 * Var(SR_daily). We must de-annualize to match daily_sharpe.
             daily_sr_variance = result.sr_variance / 252.0
 
             dsr_prob = compute_dsr(daily_sharpe, n_trials, daily_sr_variance, active_bar_returns)  # type: ignore[arg-type]
-            dsr_significant = dsr_prob >= DSR_SIGNIFICANCE_THRESHOLD
+            dsr_significant = dsr_prob >= effective_thresholds.dsr_significance
             if not dsr_significant:
                 dsr_warning = "Result may be due to multiple testing, not genuine edge"
         except Exception as exc:
@@ -362,29 +369,28 @@ def build_stitched_result(
     regime_variance = 0.0
     if len(stitched_equity) >= 60:
         try:
-            classifier = SimpleRegimeClassifier()
-            # We need the close prices for the indices in stitched_equity
-            equity_idx = stitched_equity.index
-            ohlcv_idx = ohlcv.index
-            subset_close = ohlcv.loc[ohlcv_idx.isin(equity_idx), close_col]
-            
-            if len(subset_close) == len(stitched_equity):
-                regime_masks = classifier.stratify(subset_close)
-                returns = stitched_equity.pct_change().fillna(0.0)
-                
-                regime_returns = []
-                for name, mask in regime_masks.items():
-                    if mask.any():
-                        # Annualize the mean return for this regime
-                        avg_ret = returns[mask.values].mean()
-                        regime_returns.append(avg_ret * 252.0)
-                
-                if len(regime_returns) >= 2:
-                    # Std dev of annualized returns across regimes
-                    std_regime = np.std(regime_returns)
-                    mean_abs_regime = np.mean([abs(r) for r in regime_returns])
-                    # Coefficient of variation across regimes
-                    regime_variance = float(std_regime / (mean_abs_regime + 1e-6))
+            _close_candidates = [c for c in ohlcv.columns if c.lower() == "close"]
+            if _close_candidates:
+                _close_col = _close_candidates[0]
+                classifier = SimpleRegimeClassifier()
+                equity_idx = stitched_equity.index
+                ohlcv_idx = ohlcv.index
+                subset_close = ohlcv.loc[ohlcv_idx.isin(equity_idx), _close_col]
+
+                if len(subset_close) == len(stitched_equity):
+                    regime_masks = classifier.stratify(subset_close)
+                    returns = stitched_equity.pct_change().fillna(0.0)
+
+                    regime_returns = []
+                    for _name, mask in regime_masks.items():
+                        if mask.any():
+                            avg_ret = returns[mask.values].mean()
+                            regime_returns.append(avg_ret * 252.0)
+
+                    if len(regime_returns) >= 2:
+                        std_regime = np.std(regime_returns)
+                        mean_abs_regime = np.mean([abs(r) for r in regime_returns])
+                        regime_variance = float(std_regime / (mean_abs_regime + 1e-6))
         except Exception as exc:
             log.warning("Regime variance calculation failed: %s", exc)
 
