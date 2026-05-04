@@ -57,9 +57,7 @@ class TestOptimizationConfig:
         from pydantic import ValidationError
 
         with pytest.raises(ValidationError):
-            OptimizationConfig(
-                param_ranges={"fast": [5]}, unknown_field=True
-            )
+            OptimizationConfig(param_ranges={"fast": [5]}, unknown_field=True)
 
     def test_max_trials_gt_zero(self):
         from pydantic import ValidationError
@@ -237,8 +235,12 @@ class TestMedianPruning:
             param_ranges={"fast": [5, 10, 20], "slow": [30, 50, 80]},
             pruning=PruningConfig(enabled=True, min_trials_before_prune=5),
         )
-        r_no = optimize_is_window(is_slice, cfg_no_prune, _make_sma_factory(), BacktestConfig(), seed=42)
-        r_pr = optimize_is_window(is_slice, cfg_prune, _make_sma_factory(), BacktestConfig(), seed=42)
+        r_no = optimize_is_window(
+            is_slice, cfg_no_prune, _make_sma_factory(), BacktestConfig(), seed=42
+        )
+        r_pr = optimize_is_window(
+            is_slice, cfg_prune, _make_sma_factory(), BacktestConfig(), seed=42
+        )
         assert r_no.best_params == r_pr.best_params
         assert r_no.best_metric == pytest.approx(r_pr.best_metric)
 
@@ -333,14 +335,16 @@ class TestAutoValidation:
 
     def test_flat_price_window_no_crash(self):
         dates = pd.date_range("2020-01-01", periods=120, freq="B", tz="UTC")
-        flat = pd.DataFrame({
-            "timestamp": dates,
-            "open": [100.0] * 120,
-            "high": [100.0] * 120,
-            "low": [100.0] * 120,
-            "close": [100.0] * 120,
-            "volume": [1000] * 120,
-        })
+        flat = pd.DataFrame(
+            {
+                "timestamp": dates,
+                "open": [100.0] * 120,
+                "high": [100.0] * 120,
+                "low": [100.0] * 120,
+                "close": [100.0] * 120,
+                "volume": [1000] * 120,
+            }
+        )
         cfg = OptimizationConfig(
             param_ranges={"fast": [5, 10], "slow": [30, 50]},
             pruning=PruningConfig(enabled=False),

@@ -13,12 +13,22 @@ UNDO_WINDOW_SEC: int = 10
 
 _remix_registry: dict[str, tuple[str, float]] = {}
 
-_EXCLUDED_PARAM_KEYS = frozenset({
-    "fast", "slow", "source_run_id",
-    "strategy_type", "symbol", "interval",
-    "start_date", "end_date", "engine_mode",
-    "commission_pct", "slippage_pct", "initial_cash",
-})
+_EXCLUDED_PARAM_KEYS = frozenset(
+    {
+        "fast",
+        "slow",
+        "source_run_id",
+        "strategy_type",
+        "symbol",
+        "interval",
+        "start_date",
+        "end_date",
+        "engine_mode",
+        "commission_pct",
+        "slippage_pct",
+        "initial_cash",
+    }
+)
 
 
 class VariantSuggestion(BaseModel):
@@ -43,8 +53,11 @@ def _sma_variants(config_dict: dict[str, object]) -> list[VariantSuggestion]:
     if not _validate_sma_params(fast, slow):
         return []
     base = {
-        k: v for k, v in config_dict.items()
-        if k not in _EXCLUDED_PARAM_KEYS and isinstance(v, (str, int, float)) and not isinstance(v, bool)
+        k: v
+        for k, v in config_dict.items()
+        if k not in _EXCLUDED_PARAM_KEYS
+        and isinstance(v, (str, int, float))
+        and not isinstance(v, bool)
     }
     results: list[VariantSuggestion] = []
 
@@ -91,7 +104,9 @@ _VARIANT_DISPATCH: dict[str, Callable[[dict[str, object]], list[VariantSuggestio
 }
 
 
-def generate_variants(config_dict: dict[str, object], strategy_type: str = "sma") -> list[VariantSuggestion]:
+def generate_variants(
+    config_dict: dict[str, object], strategy_type: str = "sma"
+) -> list[VariantSuggestion]:
     try:
         generator = _VARIANT_DISPATCH.get(strategy_type)
         if generator is None:

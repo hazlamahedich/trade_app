@@ -91,7 +91,7 @@ development_status:
   4-4-oos-equity-curve-stitching-efficiency-ratio: review
   4-4b-risk-adjusted-wfe-ev-significance-decay: review
   4-5-deflated-sharpe-ratio-trial-accounting: done
-  4-6-walk-forward-results-web-page: backlog
+  4-6-walk-forward-results-web-page: review
   epic-4-retrospective: optional
 
   # Epic 5: ML Experiment Pipeline

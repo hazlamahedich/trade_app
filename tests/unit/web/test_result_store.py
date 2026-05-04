@@ -21,12 +21,24 @@ def _make_stored(run_id=None, source_run_id=None, created_at=None, **kw):
 
     comparison = kw.get("comparison")
     if comparison is None:
-        metrics_type = type("M", (), {
-            "total_return": 0.1, "cagr": 0.05, "sharpe": 1.0,
-            "max_drawdown": -0.05, "alpha": 0.02, "beta": 0.9,
-        })
-        integrity = type("I", (), {"is_valid": True, "warnings": [], "errors": [], "should_halt_display": False})
-        str_result = type("R", (), {"trades": _synthetic_ohlcv(n=0), "equity": _synthetic_ohlcv(n=5)["close"]})
+        metrics_type = type(
+            "M",
+            (),
+            {
+                "total_return": 0.1,
+                "cagr": 0.05,
+                "sharpe": 1.0,
+                "max_drawdown": -0.05,
+                "alpha": 0.02,
+                "beta": 0.9,
+            },
+        )
+        integrity = type(
+            "I", (), {"is_valid": True, "warnings": [], "errors": [], "should_halt_display": False}
+        )
+        str_result = type(
+            "R", (), {"trades": _synthetic_ohlcv(n=0), "equity": _synthetic_ohlcv(n=5)["close"]}
+        )
         comparison = BaselineComparison(
             strategy_metrics=metrics_type(),
             buy_and_hold_metrics=metrics_type(),

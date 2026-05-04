@@ -21,6 +21,14 @@
 
     --radius: 0.5rem;
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+
+    --degraded-muted: #94a3b8;
+}
+
+.pressed-flower {
+    filter: grayscale(0.8) contrast(0.9);
+    opacity: 0.9;
+    transition: filter 0.5s ease;
 }
 
 [data-theme="dark"] {

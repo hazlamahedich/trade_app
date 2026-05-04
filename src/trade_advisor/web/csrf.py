@@ -16,7 +16,9 @@ _TOKEN_ATTR = "_csrf_token"
 
 
 class CSRFMiddleware(BaseHTTPMiddleware):
-    def __init__(self, app: Any, secret_key: str, cookie_secure: bool = False, cookie_samesite: str = "Lax") -> None:
+    def __init__(
+        self, app: Any, secret_key: str, cookie_secure: bool = False, cookie_samesite: str = "Lax"
+    ) -> None:
         super().__init__(app)
         self._signer = Signer(secret_key)
         self._cookie_secure = cookie_secure
@@ -63,7 +65,9 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         submitted: str | None
         if header_token:
             submitted = header_token
-        elif request.headers.get("content-type", "").startswith("application/x-www-form-urlencoded"):
+        elif request.headers.get("content-type", "").startswith(
+            "application/x-www-form-urlencoded"
+        ):
             form_data = await request.form()
             raw_val = form_data.get(CSRF_FORM_FIELD, None)
             submitted = raw_val if isinstance(raw_val, str) else None

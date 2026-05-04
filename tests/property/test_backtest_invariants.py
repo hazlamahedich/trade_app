@@ -55,9 +55,11 @@ def test_equity_near_initial_cash_at_start(scenario: tuple):
     result = run_backtest(ohlcv, signal, config)
     if len(result.equity) == 0:
         pytest.skip("empty equity curve")
-    max_first_bar_cost = float(config.initial_cash) * (
-        float(config.cost.commission_pct) + float(config.cost.slippage_pct)
-    ) * 2.0
+    max_first_bar_cost = (
+        float(config.initial_cash)
+        * (float(config.cost.commission_pct) + float(config.cost.slippage_pct))
+        * 2.0
+    )
     assert result.equity.iloc[0] == pytest.approx(
         initial_cash, abs=max(max_first_bar_cost, initial_cash * 0.05)
     )
@@ -174,4 +176,6 @@ def test_deterministic_same_seed_same_result(scenario: tuple):
     np.testing.assert_array_equal(result1.equity.values, result2.equity.values)
     assert len(result1.trades) == len(result2.trades)
     if len(result1.trades) > 0:
-        np.testing.assert_array_equal(result1.trades["return"].values, result2.trades["return"].values)
+        np.testing.assert_array_equal(
+            result1.trades["return"].values, result2.trades["return"].values
+        )

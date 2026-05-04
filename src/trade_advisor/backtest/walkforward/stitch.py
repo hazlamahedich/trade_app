@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass, field
 from typing import Literal
@@ -8,12 +9,15 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+from trade_advisor.backtest.regime import SimpleRegimeClassifier
 from trade_advisor.backtest.walkforward.deflated import compute_dsr
 from trade_advisor.backtest.walkforward.engine import (
     WalkForwardConfig,
     WalkForwardResult,
     WindowResult,
 )
+
+log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -41,6 +45,7 @@ class WalkforwardDiagnostics:
     dsr: float | None = None
     dsr_significant: bool = False
     dsr_warning: str | None = None
+    regime_variance: float | None = None
     hints: dict[str, str] = field(default_factory=dict)
 
 
@@ -57,6 +62,7 @@ class ExtendedWalkforwardResult:
     n_active_bars_oos: int = 0
     window_0_oos_is_baseline: bool = False
     diagnostics: WalkforwardDiagnostics | None = None
+    regime_variance: float = 0.0
 
     @property
     def expected_value_per_trade(self) -> float:
@@ -132,7 +138,7 @@ def wfe_status(
 
 
 def _compound_returns(
-    valid: list,
+    valid: list,  # type: ignore[type-arg]
 ) -> tuple[float, float]:
     # Ensure we only compound finite values
     is_compound = math.prod(1.0 + w.is_return for w in valid if math.isfinite(w.is_return)) - 1.0
@@ -197,7 +203,7 @@ def compute_ev_significance(
     # 95% CI using Z=1.96 as specified in story
     lower = ev - 1.96 * sem
     upper = ev + 1.96 * sem
-    return sem, lower, upper
+    return sem, lower, upper  # type: ignore[return-value]
 
 
 def compute_wfe_decay(wfe_per_fold: list[float]) -> tuple[float, float]:
@@ -236,12 +242,12 @@ def compute_oos_baseline(
     # We normalize to naive DatetimeIndex to prevent empty sets if one is aware and other is naive.
     def _to_naive(idx: pd.Index) -> pd.Index:
         if hasattr(idx, "tz") and idx.tz is not None:
-            return idx.tz_localize(None)
+            return idx.tz_localize(None)  # type: ignore[no-any-return, attr-defined]
         return idx
 
     equity_idx = _to_naive(stitched_equity.index)
     ohlcv_idx = _to_naive(ohlcv.index)
-    
+
     subset = ohlcv.loc[ohlcv_idx.isin(equity_idx), close_col]
     if len(subset) < 2:
         return pd.Series(dtype="float64")
@@ -290,10 +296,7 @@ def build_stitched_result(
         [w.oos_equity for w in valid_windows], initial_cash=initial_cash
     )
 
-
-    wfe, status, per_fold, is_compound, oos_compound = compute_wfe_from_result(
-        result, thresholds
-    )
+    wfe, status, per_fold, is_compound, oos_compound = compute_wfe_from_result(result, thresholds)
     baseline_equity = compute_oos_baseline(stitched_equity, ohlcv, result.config)
 
     # Currently Story 4.4a approximates EV via per-bar returns.
@@ -322,27 +325,22 @@ def build_stitched_result(
     dsr_warning = None
 
     n_trials = total_trials_override if total_trials_override is not None else result.total_trials
-    
+
     # Consensus: Only compute DSR if we optimized for Sharpe to ensure statistical validity
     is_sharpe_opt = result.config.optimization and result.config.optimization.metric == "sharpe"
-    
+
     if is_sharpe_opt and n_trials > 0 and len(active_bar_returns) >= 2:
         # AC-1: DSR requires daily (per-bar) returns and consistent Sharpe scaling.
         # ev here is the arithmetic mean of bar returns (daily).
         daily_std = np.std(active_bar_returns, ddof=1)
         daily_sharpe = ev / daily_std if daily_std > 0 else 0.0
-        
+
         try:
             # result.sr_variance is accumulated from annualized Sharpe ratios (sqrt(252)).
             # Var(SR_ann) = 252 * Var(SR_daily). We must de-annualize to match daily_sharpe.
             daily_sr_variance = result.sr_variance / 252.0
-            
-            dsr_prob = compute_dsr(
-                daily_sharpe, 
-                n_trials, 
-                daily_sr_variance, 
-                active_bar_returns
-            )
+
+            dsr_prob = compute_dsr(daily_sharpe, n_trials, daily_sr_variance, active_bar_returns)  # type: ignore[arg-type]
             dsr_significant = dsr_prob >= DSR_SIGNIFICANCE_THRESHOLD
             if not dsr_significant:
                 dsr_warning = "Result may be due to multiple testing, not genuine edge"
@@ -356,7 +354,39 @@ def build_stitched_result(
     if risk_adj_wfe < 0.5:
         hints["risk_adj_wfe"] = "Low risk-adjusted WFE suggests inconsistent OOS risk management."
     if dsr_prob is not None and not dsr_significant:
-        hints["dsr"] = f"Low DSR probability ({dsr_prob:.2%}) suggests potential overfitting/multiple-testing bias."
+        hints["dsr"] = (
+            f"Low DSR probability ({dsr_prob:.2%}) suggests potential overfitting/multiple-testing bias."
+        )
+
+    # --- Story 4.6: Regime Variance ---
+    regime_variance = 0.0
+    if len(stitched_equity) >= 60:
+        try:
+            classifier = SimpleRegimeClassifier()
+            # We need the close prices for the indices in stitched_equity
+            equity_idx = stitched_equity.index
+            ohlcv_idx = ohlcv.index
+            subset_close = ohlcv.loc[ohlcv_idx.isin(equity_idx), close_col]
+            
+            if len(subset_close) == len(stitched_equity):
+                regime_masks = classifier.stratify(subset_close)
+                returns = stitched_equity.pct_change().fillna(0.0)
+                
+                regime_returns = []
+                for name, mask in regime_masks.items():
+                    if mask.any():
+                        # Annualize the mean return for this regime
+                        avg_ret = returns[mask.values].mean()
+                        regime_returns.append(avg_ret * 252.0)
+                
+                if len(regime_returns) >= 2:
+                    # Std dev of annualized returns across regimes
+                    std_regime = np.std(regime_returns)
+                    mean_abs_regime = np.mean([abs(r) for r in regime_returns])
+                    # Coefficient of variation across regimes
+                    regime_variance = float(std_regime / (mean_abs_regime + 1e-6))
+        except Exception as exc:
+            log.warning("Regime variance calculation failed: %s", exc)
 
     diagnostics = WalkforwardDiagnostics(
         risk_adj_wfe=risk_adj_wfe,
@@ -366,6 +396,7 @@ def build_stitched_result(
         dsr=dsr_prob,
         dsr_significant=dsr_significant,
         dsr_warning=dsr_warning,
+        regime_variance=regime_variance,
         hints=hints,
     )
 
@@ -381,4 +412,5 @@ def build_stitched_result(
         n_active_bars_oos=len(active_bar_returns),
         window_0_oos_is_baseline=result.config.frozen_params_mode,
         diagnostics=diagnostics,
+        regime_variance=regime_variance,
     )

@@ -9,7 +9,9 @@ from __future__ import annotations
 from typing import Any
 
 
-def check_schema_version(db_path: str = ":memory:", required_version: int | None = None) -> dict[str, Any]:
+def check_schema_version(
+    db_path: str = ":memory:", required_version: int | None = None
+) -> dict[str, Any]:
     """Check current schema version against required version.
 
     Parameters

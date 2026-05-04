@@ -144,7 +144,7 @@ class TestDivisionByZeroAndNegative:
     @pytest.mark.p0
     def test_three_window_stitch_length(self):
         # segments all start at initial_cash
-        segments = [pd.Series([100_000.0, 101_000.0], index=[i*10, i*10+1]) for i in range(3)]
+        segments = [pd.Series([100_000.0, 101_000.0], index=[i * 10, i * 10 + 1]) for i in range(3)]
         stitched = stitch_oos_equity(segments, initial_cash=100_000.0)
         assert len(stitched) == 6
 
@@ -223,7 +223,15 @@ class TestWFEStatusBoundary:
     @pytest.mark.test_id("4.4-NEW-015")
     @pytest.mark.p1
     def test_custom_thresholds(self):
-        assert wfe_status(0.6, thresholds=WFEThresholds(healthy_min=0.8), total_is_return=0.1, total_oos_return=0.06) == "caution"
+        assert (
+            wfe_status(
+                0.6,
+                thresholds=WFEThresholds(healthy_min=0.8),
+                total_is_return=0.1,
+                total_oos_return=0.06,
+            )
+            == "caution"
+        )
 
     def test_double_negative_unreliable(self):
         # Both lost money, WFE is positive 0.8, but result is unreliable
@@ -282,7 +290,7 @@ class TestExpectedValue:
     @pytest.mark.test_id("4.4-NEW-020")
     @pytest.mark.p1
     def test_known_returns_ev(self):
-        returns = [0.02, -0.01, 0.03, 0.0, -0.02] # Include 0.0
+        returns = [0.02, -0.01, 0.03, 0.0, -0.02]  # Include 0.0
         ev = compute_expected_value(returns)
         assert ev == pytest.approx(np.mean(returns), abs=1e-10)
 
@@ -355,7 +363,9 @@ class TestBuildStitchedResult:
         stitched = build_stitched_result(result, ohlcv)
         if len(stitched.baseline_equity) > 0:
             # Scale should match stitched_equity first value
-            assert stitched.baseline_equity.iloc[0] == pytest.approx(stitched.stitched_equity.iloc[0])
+            assert stitched.baseline_equity.iloc[0] == pytest.approx(
+                stitched.stitched_equity.iloc[0]
+            )
 
     @pytest.mark.test_id("4.4-NEW-026")
     @pytest.mark.p1
@@ -370,7 +380,6 @@ class TestBuildStitchedResult:
         assert len(r1.wfe_per_fold) == len(r2.wfe_per_fold)
         for a, b in zip(r1.wfe_per_fold, r2.wfe_per_fold, strict=True):
             assert a == b
-
 
     @pytest.mark.test_id("4.4-NEW-027")
     @pytest.mark.p1
@@ -442,11 +451,14 @@ class TestEdgeCases:
     def test_compute_oos_baseline_timezone_normalization(self):
         # Aware equity index, naive ohlcv
         idx = pd.date_range("2023-01-01", periods=5, freq="D")
-        stitched_equity = pd.Series([100000.0, 101000.0, 102000.0, 103000.0, 104000.0], index=idx.tz_localize("UTC"))
+        stitched_equity = pd.Series(
+            [100000.0, 101000.0, 102000.0, 103000.0, 104000.0], index=idx.tz_localize("UTC")
+        )
         ohlcv = pd.DataFrame({"close": [10, 11, 12, 13, 14]}, index=idx)
         config = WalkForwardConfig(mode="rolling", is_bars=20, oos_bars=10)
-        
+
         from trade_advisor.backtest.walkforward.stitch import compute_oos_baseline
+
         baseline = compute_oos_baseline(stitched_equity, ohlcv, config)
         assert len(baseline) == 5
         # Index should be naive per normalization
@@ -460,8 +472,9 @@ class TestEdgeCases:
         # Zero price at index 2
         ohlcv = pd.DataFrame({"close": [10, 11, 0, 13, 14]}, index=idx)
         config = WalkForwardConfig(mode="rolling", is_bars=20, oos_bars=10)
-        
+
         from trade_advisor.backtest.walkforward.stitch import compute_oos_baseline
+
         baseline = compute_oos_baseline(stitched_equity, ohlcv, config)
         assert not np.isinf(baseline).any()
         assert not baseline.isna().any()
@@ -503,16 +516,18 @@ class TestATDDCompat:
     def test_atdd_009_empty_ev(self):
         assert compute_expected_value([]) == 0.0
 
+
 # ---------------------------------------------------------------------------
 # Story 4.4b: Advanced Diagnostics (Risk-Adj WFE, EV Sig, Decay)
 # ---------------------------------------------------------------------------
 
-from trade_advisor.backtest.walkforward.stitch import (
+from trade_advisor.backtest.walkforward.stitch import (  # noqa: E402
     WalkforwardDiagnostics,
-    compute_wfe_sharpe,
     compute_ev_significance,
     compute_wfe_decay,
+    compute_wfe_sharpe,
 )
+
 
 class TestStory44bAdvancedDiagnostics:
     """Tests for Story 4.4b new diagnostic metrics."""
@@ -583,7 +598,7 @@ class TestStory44bAdvancedDiagnostics:
         wf_result = _make_wf_result(n_windows=5)
         ohlcv = _synthetic_ohlcv(100)
         stitched = build_stitched_result(wf_result, ohlcv)
-        
+
         assert stitched.diagnostics is not None
         assert isinstance(stitched.diagnostics, WalkforwardDiagnostics)
         assert stitched.diagnostics.risk_adj_wfe >= 0

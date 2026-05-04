@@ -37,9 +37,7 @@ class TestStory42HyperparameterSearch:
             param_ranges={"fast": [5, 10, 20], "slow": [30, 50, 100]},
             pruning=PruningConfig(enabled=False),
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
 
         assert result.best_params is not None
         assert "fast" in result.best_params
@@ -61,9 +59,7 @@ class TestStory42HyperparameterSearch:
             pruning=PruningConfig(enabled=True, min_trials_before_prune=5),
             max_trials=49,
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
 
         assert result.n_pruned > 0
         evaluated = [t for t in result.all_results if t.status == "evaluated"]
@@ -78,9 +74,7 @@ class TestStory42HyperparameterSearch:
             pruning=PruningConfig(enabled=False),
             constraints=[monotonic_increasing("fast", "slow")],
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
 
         assert result.best_params["fast"] < result.best_params["slow"]
 
@@ -92,9 +86,7 @@ class TestStory42HyperparameterSearch:
             param_ranges={"fast": [5, 10], "slow": [30, 50]},
             pruning=PruningConfig(enabled=False),
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
 
         assert result.all_results is not None
         assert len(result.all_results) > 0
@@ -130,9 +122,7 @@ class TestStory42HyperparameterSearch:
             pruning=PruningConfig(enabled=False),
             constraints=[monotonic_increasing("fast", "slow")],
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
         assert result.n_trials == 1
         failed = [t for t in result.all_results if t.status == "failed"]
         assert len(failed) == 1
@@ -145,9 +135,7 @@ class TestStory42HyperparameterSearch:
             param_ranges={"fast": [5, 10, 20], "slow": [30, 50, 80]},
             pruning=PruningConfig(enabled=False),
         )
-        result = optimize_is_window(
-            is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42
-        )
+        result = optimize_is_window(is_window, cfg, _make_sma_factory(), BacktestConfig(), seed=42)
 
         evaluated = [t for t in result.all_results if t.status == "evaluated"]
         assert len(evaluated) == result.n_trials

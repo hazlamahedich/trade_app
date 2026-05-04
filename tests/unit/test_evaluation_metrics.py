@@ -116,12 +116,28 @@ class TestMetricsToDict:
     @pytest.mark.test_id("1.5-UNIT-013")
     @pytest.mark.p1
     def test_round_trip_keys(self):
-        m = Metrics(total_return=0.1, cagr=0.05, annual_vol=0.15, sharpe=1.0,
-                     sortino=1.2, max_drawdown=-0.1, calmar=0.5, win_rate=0.6, n_bars=100)
+        m = Metrics(
+            total_return=0.1,
+            cagr=0.05,
+            annual_vol=0.15,
+            sharpe=1.0,
+            sortino=1.2,
+            max_drawdown=-0.1,
+            calmar=0.5,
+            win_rate=0.6,
+            n_bars=100,
+        )
         d = m.to_dict()
         assert set(d.keys()) == {
-            "total_return", "cagr", "annual_vol", "sharpe", "sortino",
-            "max_drawdown", "calmar", "win_rate", "n_bars",
+            "total_return",
+            "cagr",
+            "annual_vol",
+            "sharpe",
+            "sortino",
+            "max_drawdown",
+            "calmar",
+            "win_rate",
+            "n_bars",
         }
         assert d["n_bars"] == 100
         assert d["sharpe"] == 1.0

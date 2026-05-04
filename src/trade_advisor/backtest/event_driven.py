@@ -201,9 +201,11 @@ class EventDrivenEngine:
         if stop_pct is None:
             raise ValueError("stop_loss_pct must be set for stop-loss backtest")
 
-        effective_cost_pct = (cost_engine.fixed_per_trade / initial_cash) + (
-            cost_engine.bps / 10_000
-        ) if initial_cash > 0 else 0.0
+        effective_cost_pct = (
+            (cost_engine.fixed_per_trade / initial_cash) + (cost_engine.bps / 10_000)
+            if initial_cash > 0
+            else 0.0
+        )
 
         n = len(price)
         equity_arr = np.empty(n, dtype=np.float64)
@@ -244,9 +246,7 @@ class EventDrivenEngine:
                         else:
                             ret = (exit_px / entry_price - 1.0) * current_side
                             notional = abs(1.0 * exit_px)
-                            breakdown = cost_engine.compute_breakdown(
-                                notional, price=exit_px
-                            )
+                            breakdown = cost_engine.compute_breakdown(notional, price=exit_px)
                             trade_records.append(
                                 {
                                     "entry_ts": entry_ts,
@@ -307,9 +307,7 @@ class EventDrivenEngine:
                     else:
                         ret = (exit_px / entry_price - 1.0) * current_side
                         notional = abs(1.0 * exit_px)
-                        breakdown = cost_engine.compute_breakdown(
-                            notional, price=exit_px
-                        )
+                        breakdown = cost_engine.compute_breakdown(notional, price=exit_px)
                         trade_records.append(
                             {
                                 "entry_ts": entry_ts,

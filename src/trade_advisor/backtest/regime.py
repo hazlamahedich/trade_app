@@ -93,7 +93,9 @@ class SimpleRegimeClassifier:
         trending = trending_up | trending_down
         mean_reverting = ~trending & ~rolling_slope.isna()
 
-        rolling_vol = close.pct_change(fill_method=None).rolling(self._vol_window).std() * np.sqrt(252)
+        rolling_vol = close.pct_change(fill_method=None).rolling(self._vol_window).std() * np.sqrt(
+            252
+        )
 
         vol_75 = rolling_vol.rolling(self._lookback, min_periods=60).quantile(0.75)
         vol_25 = rolling_vol.rolling(self._lookback, min_periods=60).quantile(0.25)

@@ -49,19 +49,42 @@ class TestIsHtmx:
 
 class TestMetricsToContext:
     def test_extracts_six_fields(self):
-        metrics = type("M", (), {
-            "total_return": 0.1, "cagr": 0.05, "sharpe": 1.2,
-            "max_drawdown": -0.08, "alpha": 0.03, "beta": 0.95,
-        })()
+        metrics = type(
+            "M",
+            (),
+            {
+                "total_return": 0.1,
+                "cagr": 0.05,
+                "sharpe": 1.2,
+                "max_drawdown": -0.08,
+                "alpha": 0.03,
+                "beta": 0.95,
+            },
+        )()
         ctx = _metrics_to_context(metrics)
-        assert set(ctx.keys()) == {"total_return", "cagr", "sharpe", "max_drawdown", "alpha", "beta"}
+        assert set(ctx.keys()) == {
+            "total_return",
+            "cagr",
+            "sharpe",
+            "max_drawdown",
+            "alpha",
+            "beta",
+        }
         assert ctx["total_return"] == pytest.approx(0.1)
 
     def test_handles_nan_metrics(self):
-        metrics = type("M", (), {
-            "total_return": float("nan"), "cagr": 0.05, "sharpe": float("inf"),
-            "max_drawdown": -0.08, "alpha": 0.03, "beta": 0.95,
-        })()
+        metrics = type(
+            "M",
+            (),
+            {
+                "total_return": float("nan"),
+                "cagr": 0.05,
+                "sharpe": float("inf"),
+                "max_drawdown": -0.08,
+                "alpha": 0.03,
+                "beta": 0.95,
+            },
+        )()
         ctx = _metrics_to_context(metrics)
         assert ctx["total_return"] == 0.0
         assert ctx["sharpe"] == 0.0

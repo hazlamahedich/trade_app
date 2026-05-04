@@ -218,7 +218,11 @@ class MLStrategy:
             result = predictions.reindex(ohlcv.index, method="ffill").fillna(0.0)
             return result
 
-        log.warning("ta:ml_adapter:positional_fallback ohlcv_bars=%d pred_bars=%d", len(ohlcv), len(predictions))
+        log.warning(
+            "ta:ml_adapter:positional_fallback ohlcv_bars=%d pred_bars=%d",
+            len(ohlcv),
+            len(predictions),
+        )
         result = pd.Series(0.0, index=ohlcv.index, dtype="float64")
         common_len = min(len(predictions), len(ohlcv))
         result.iloc[:common_len] = predictions.iloc[:common_len].values

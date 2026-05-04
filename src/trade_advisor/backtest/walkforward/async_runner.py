@@ -84,7 +84,7 @@ async def async_run_walkforward(
                 config.optimization,
                 strategy_factory,
                 config.backtest,
-                seed=SeedManager().get_seed(config.seed, "window", window_idx),
+                seed=SeedManager().get_seed(config.seed, "window", window_idx),  # type: ignore[call-arg, attr-defined]
             )
             if opt_result.best_params:
                 current_strategy = strategy_factory(opt_result.best_params)

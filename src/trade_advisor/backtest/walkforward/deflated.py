@@ -52,20 +52,12 @@ class TrialStats:
 
         new_total = self.n_trials + other.n_trials
         delta = other.mean - self.mean
-        self.mean = (
-            self.n_trials * self.mean + other.n_trials * other.mean
-        ) / new_total
-        self.m2 = (
-            self.m2
-            + other.m2
-            + (delta**2) * self.n_trials * other.n_trials / new_total
-        )
+        self.mean = (self.n_trials * self.mean + other.n_trials * other.mean) / new_total
+        self.m2 = self.m2 + other.m2 + (delta**2) * self.n_trials * other.n_trials / new_total
         self.n_trials = new_total
 
 
-def compute_trial_stats_online(
-    n_trials: int, metrics_stream: Iterable[float]
-) -> TrialStats:
+def compute_trial_stats_online(n_trials: int, metrics_stream: Iterable[float]) -> TrialStats:
     """Compute mean and variance of metrics using Welford's algorithm.
 
     This avoids storing all metrics in memory, which is essential for
@@ -107,7 +99,7 @@ def compute_dsr(
     observed_sr: float,
     n_trials: int,
     sr_variance: float,
-    returns: np.ndarray | list[float],
+    returns: np.ndarray | list[float],  # type: ignore[type-arg]
 ) -> float:
     """Compute the Deflated Sharpe Ratio (DSR).
 

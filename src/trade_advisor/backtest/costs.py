@@ -238,9 +238,7 @@ def apply_costs(result: object, cost_model: CostModel) -> object:
     from trade_advisor.backtest.engine import BacktestResult
 
     if not isinstance(result, BacktestResult):
-        raise TypeError(
-            f"apply_costs expects a BacktestResult, got {type(result).__name__}"
-        )
+        raise TypeError(f"apply_costs expects a BacktestResult, got {type(result).__name__}")
     engine = CostEngine.from_model(cost_model)
 
     trades = result.trades.copy()

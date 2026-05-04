@@ -27,6 +27,7 @@ import pandas as pd
 from pydantic import BaseModel, Field, model_validator
 
 from trade_advisor.backtest.engine import BacktestResult, run_backtest
+from trade_advisor.backtest.walkforward.deflated import compute_trial_stats_online
 from trade_advisor.backtest.walkforward.optimize import (
     OptimizationConfig,
     OptimizationResult,
@@ -383,6 +384,7 @@ def walk_forward(
     prior_source_window: int | None = None
 
     from trade_advisor.backtest.walkforward.deflated import TrialStats
+
     cumulative_stats = TrialStats()
 
     if config.optimization is not None:

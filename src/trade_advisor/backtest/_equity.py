@@ -90,7 +90,9 @@ def compute_equity_curve(
 
     if cost_engine is not None:
         if initial_cash <= 0:
-            raise ValueError(f"initial_cash must be > 0 when cost_engine is provided, got {initial_cash}")
+            raise ValueError(
+                f"initial_cash must be > 0 when cost_engine is provided, got {initial_cash}"
+            )
         effective_cost_pct = (cost_engine.fixed_per_trade / initial_cash) + (
             cost_engine.bps / 10_000
         )

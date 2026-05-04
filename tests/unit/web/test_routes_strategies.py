@@ -60,10 +60,15 @@ class TestSafeSymbol:
 
 class TestValidateInputs:
     def test_valid_inputs_return_none(self):
-        assert _validate_inputs("SPY", 20, 50, "2020-01-01", "2025-01-01", 100000, 0.001, 0.0005) is None
+        assert (
+            _validate_inputs("SPY", 20, 50, "2020-01-01", "2025-01-01", 100000, 0.001, 0.0005)
+            is None
+        )
 
     def test_empty_symbol(self):
-        assert "Symbol" in (_validate_inputs("", 20, 50, "2020-01-01", "2025-01-01", 100000, 0.001, 0.0005) or "")
+        assert "Symbol" in (
+            _validate_inputs("", 20, 50, "2020-01-01", "2025-01-01", 100000, 0.001, 0.0005) or ""
+        )
 
     def test_fast_equals_slow(self):
         result = _validate_inputs("SPY", 20, 20, "2020-01-01", "2025-01-01", 100000, 0.001, 0.0005)
@@ -82,7 +87,9 @@ class TestValidateInputs:
         assert result is not None and "positive" in result.lower()
 
     def test_infinite_cash(self):
-        result = _validate_inputs("SPY", 20, 50, "2020-01-01", "2025-01-01", float("inf"), 0.001, 0.0005)
+        result = _validate_inputs(
+            "SPY", 20, 50, "2020-01-01", "2025-01-01", float("inf"), 0.001, 0.0005
+        )
         assert result is not None and "finite" in result.lower()
 
     def test_negative_commission(self):
@@ -98,7 +105,9 @@ class TestValidateInputs:
         assert result is not None and "1.0" in result
 
     def test_commission_exactly_one_ok(self):
-        assert _validate_inputs("SPY", 20, 50, "2020-01-01", "2025-01-01", 100000, 1.0, 0.0005) is None
+        assert (
+            _validate_inputs("SPY", 20, 50, "2020-01-01", "2025-01-01", 100000, 1.0, 0.0005) is None
+        )
 
     def test_invalid_dates(self):
         result = _validate_inputs("SPY", 20, 50, "not-a-date", "also-bad", 100000, 0.001, 0.0005)

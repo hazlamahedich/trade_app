@@ -18,7 +18,9 @@ from trade_advisor.backtest.engine import run_backtest
 from trade_advisor.backtest.event_driven import EventDrivenEngine
 from trade_advisor.config import BacktestConfig, CostModel
 
-_zero_cost = BacktestConfig(initial_cash="100000", cost=CostModel(commission_pct=0.0, slippage_pct=0.0))
+_zero_cost = BacktestConfig(
+    initial_cash="100000", cost=CostModel(commission_pct=0.0, slippage_pct=0.0)
+)
 
 
 @st.composite
@@ -27,7 +29,9 @@ def signal_series(draw: st.DrawFn, length: int) -> np.ndarray:
         arrays(
             dtype=np.float64,
             shape=length,
-            elements=st.floats(min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False),
+            elements=st.floats(
+                min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False
+            ),
         )
     )
     return raw
@@ -37,7 +41,9 @@ def signal_series(draw: st.DrawFn, length: int) -> np.ndarray:
 def block_signal(draw: st.DrawFn, length: int) -> np.ndarray:
     n_blocks = draw(st.integers(min_value=1, max_value=min(10, length // 5 + 1)))
     rng = np.random.default_rng(draw(st.integers(min_value=0, max_value=2**31 - 1)))
-    boundaries = sorted(rng.choice(range(1, length), size=min(n_blocks - 1, length - 2), replace=False))
+    boundaries = sorted(
+        rng.choice(range(1, length), size=min(n_blocks - 1, length - 2), replace=False)
+    )
     boundaries = [0, *list(boundaries), length]
     levels = rng.choice([-1.0, 0.0, 1.0], size=len(boundaries) - 1)
     sig = np.zeros(length, dtype=np.float64)

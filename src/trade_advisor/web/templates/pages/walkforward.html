@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Walk-Forward Results - Quant Trade Advisor{% endblock %}
+
+{% block content %}
+<div class="walkforward-dashboard">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <h1>Walk-Forward Validation</h1>
+        <div class="audit-toggle">
+            <label class="switch">
+                <input type="checkbox" id="audit-mode-checkbox" onchange="window.dispatchEvent(new CustomEvent('ta:audit-mode', {detail: {enabled: this.checked}}))">
+                <span class="slider round"></span>
+            </label>
+            <span style="font-size: 0.85rem; margin-left: 0.5rem; color: var(--text-secondary);">Quant Audit Mode</span>
+        </div>
+    </div>
+    
+    <div id="error-container"></div>
+
+    {% if run_id %}
+    <!-- Detailed Run View -->
+    <div id="wf-run-container" 
+         hx-ext="sse" 
+         sse-connect="/walkforward/run/{{ run_id }}/stream">
+        
+        <div id="progress-container" sse-swap="ta:walkforward:progress" hx-swap="innerHTML">
+            <!-- Progress injected here via SSE -->
+            <div class="card">
+                <div class="spinner"></div> Connecting to walk-forward engine...
+            </div>
+        </div>
+
+        <div id="completed-container" sse-swap="ta:walkforward:completed" hx-swap="innerHTML"></div>
+        <div id="error-container-sse" sse-swap="ta:walkforward:error" hx-swap="innerHTML"></div>
+
+        <!-- The stitched OOS Equity Curve -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3>Equity Curve (Stitched OOS)</h3>
+            <div data-island="walkForwardChart" data-props='{"runId": "{{ run_id }}"}'></div>
+        </div>
+
+        <!-- Window Breakdown -->
+        <div class="card" style="margin-top: 1.5rem;">
+            <h3>Window Breakdown & Parameter Drift</h3>
+            <div data-island="windowTable" data-props='{"runId": "{{ run_id }}"}'></div>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- List / Start View -->
+    <div class="card">
+        <p>Start a new walk-forward validation from the Strategy Lab or select an existing run.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

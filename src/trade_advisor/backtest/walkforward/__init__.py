@@ -51,6 +51,7 @@ __all__ = [
     "WalkForwardError",
     "WalkForwardResult",
     "WindowResult",
+    "_extract_active_bar_returns",
     "async_run_walkforward",
     "build_stitched_result",
     "compute_deflated_sharpe",
@@ -62,8 +63,8 @@ __all__ = [
     "compute_wfe",
     "compute_wfe_from_result",
     "count_independent_trials",
+    "optimize_is_window",
     "stitch_oos_equity",
     "walk_forward",
     "wfe_status",
-    "_extract_active_bar_returns",
 ]

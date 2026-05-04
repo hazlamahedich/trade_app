@@ -49,10 +49,15 @@ class TestGenerateVariantsEdgeCases:
             assert "flag" not in v.params
 
     def test_excluded_keys_do_not_leak(self):
-        variants = generate_variants({
-            "fast": 20, "slow": 50, "source_run_id": "abc",
-            "symbol": "SPY", "strategy_type": "sma",
-        })
+        variants = generate_variants(
+            {
+                "fast": 20,
+                "slow": 50,
+                "source_run_id": "abc",
+                "symbol": "SPY",
+                "strategy_type": "sma",
+            }
+        )
         for v in variants:
             assert "source_run_id" not in v.params
             assert "symbol" not in v.params
@@ -61,7 +66,9 @@ class TestGenerateVariantsEdgeCases:
         import trade_advisor.web.services.remix as remix_mod
 
         def _huge_generator(config_dict):
-            return [VariantSuggestion(label=f"v{i}", hint="h", params={"fast": i}) for i in range(20)]
+            return [
+                VariantSuggestion(label=f"v{i}", hint="h", params={"fast": i}) for i in range(20)
+            ]
 
         old = remix_mod._VARIANT_DISPATCH.copy()
         try:

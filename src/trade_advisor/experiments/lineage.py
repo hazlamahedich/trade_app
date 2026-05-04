@@ -78,7 +78,7 @@ def _extract_n_trials(metrics_json: str | None) -> int:
             # n_trials is MANDATORY for Story 4.5
             return int(data.get("n_trials", 0))
     except (json.JSONDecodeError, TypeError, ValueError) as exc:
-        logger.warning("Failed to extract n_trials from experiment: %s", exc)
+        log.warning("Failed to extract n_trials from experiment: %s", exc)
     return 0
 
 
@@ -229,11 +229,11 @@ async def get_cumulative_trials(db: DatabaseReader, run_id: str) -> int:
         )
         if not result:
             break
-        
+
         row = result[0]
         total += _extract_n_trials(row[1])
         current_id = row[0]
-    
+
     return total
 
 

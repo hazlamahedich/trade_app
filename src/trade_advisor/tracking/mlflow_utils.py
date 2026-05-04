@@ -30,9 +30,7 @@ def init_tracking(experiment: str = "default") -> None:
 
 
 @contextmanager
-def run(
-    experiment: str = "default", run_name: str | None = None
-) -> Iterator[Any]:
+def run(experiment: str = "default", run_name: str | None = None) -> Iterator[Any]:
     """Context manager wrapping mlflow.start_run.
 
     No-ops silently if mlflow is not installed.

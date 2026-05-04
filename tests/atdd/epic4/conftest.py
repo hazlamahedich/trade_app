@@ -108,7 +108,7 @@ def wf_windows() -> list[dict]:
 
 
 @pytest.fixture
-def wf_result(wf_windows) -> WalkForwardResult:
+def wf_result(wf_windows):
     from trade_advisor.backtest.walkforward.engine import (
         DataBoundary,
         WalkForwardConfig,
@@ -166,42 +166,79 @@ async def db_with_wf_results():
     db = DatabaseManager(config)
     now = datetime.now(UTC)
 
+    wf_windows = _make_wf_windows(n_windows=5)
+
+    trade_analysis = {
+        "stitched_equity": [
+            {"time": f"2020-01-{i + 1:02d}", "value": float(100_000 + i * 200)}
+            for i in range(100)
+        ],
+        "baseline_equity": [
+            {"time": f"2020-01-{i + 1:02d}", "value": float(100_000 + i * 100)}
+            for i in range(100)
+        ],
+        "windows": [
+            {
+                "is_start": f"2020-01-{1 + w['window_idx'] * 17:02d}",
+                "is_end": f"2020-03-{1 + w['window_idx'] * 2:02d}",
+                "oos_start": f"2020-03-{2 + w['window_idx'] * 2:02d}",
+                "oos_end": f"2020-04-{1 + w['window_idx']:02d}",
+                "is_sharpe": w["is_sharpe"],
+                "oos_sharpe": w["oos_sharpe"],
+                "is_return": w["is_return"],
+                "oos_return": w["oos_return"],
+                "params": w["params"],
+            }
+            for w in wf_windows
+        ],
+    }
+
+    metrics = {
+        "wf_sharpe": 1.2,
+        "wfe": 0.65,
+        "wfe_status": "caution",
+        "risk_adj_wfe": 0.60,
+        "expected_value": 0.008,
+        "dsr": 0.04,
+        "dsr_significant": False,
+        "regime_variance": 0.12,
+        "hints": {"wfe_tip": "Strategy shows partial overfitting"},
+    }
+
+    config_json = {
+        "strategy_type": "sma",
+        "symbol": "SPY",
+        "wf_mode": "rolling",
+        "is_bars": 60,
+        "oos_bars": 20,
+        "n_windows": 5,
+    }
+
     async with db:
         await db.write(
-            "INSERT INTO experiments (run_id, config_hash, strategy, metrics_json, seed, status, "
-            "created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO experiments "
+            "(run_id, config_hash, strategy, metrics_json, seed, status, "
+            "created_at, completed_at, config_json, trade_analysis_json, "
+            "engine_mode, is_label, sample_type) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 "run_wf_001",
                 "hash_wf_001",
                 "SmaCross",
-                json.dumps({"wf_sharpe": 1.2, "wfe": 0.65}),
+                json.dumps(metrics),
                 42,
                 "completed",
                 now,
                 now,
-            ),
-        )
-        await db.write(
-            "UPDATE experiments SET config_json = ?, engine_mode = 'vectorized', "
-            "is_label = 'Walk-Forward OOS', sample_type = 'oos' WHERE run_id = ?",
-            (
-                json.dumps(
-                    {
-                        "strategy_type": "sma",
-                        "symbol": "SPY",
-                        "wf_mode": "rolling",
-                        "is_bars": 60,
-                        "oos_bars": 20,
-                        "n_windows": 5,
-                    }
-                ),
-                "run_wf_001",
+                json.dumps(config_json),
+                json.dumps(trade_analysis),
+                "vectorized",
+                "Walk-Forward OOS",
+                "oos",
             ),
         )
 
-        windows = _make_wf_windows(n_windows=5)
-        for w in windows:
-            # Use unique source names for each window to avoid overlapping primary keys (run_id, source, ts)
+        for w in wf_windows:
             for src_base, eq in [("is", w["is_equity"]), ("oos", w["oos_equity"])]:
                 src = f"{src_base}_window_{w['window_idx']}"
                 idx = pd.date_range(

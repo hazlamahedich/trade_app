@@ -73,9 +73,7 @@ def compute_performance_metrics(result: BacktestResult) -> PerformanceMetrics:
         if base <= 0:
             cagr = total_return
         else:
-            cagr = _q(
-                float(base ** (Decimal(1) / Decimal(str(years))) - Decimal(1))
-            )
+            cagr = _q(float(base ** (Decimal(1) / Decimal(str(years))) - Decimal(1)))
 
     cummax = equity.cummax()
     dd = (equity - cummax) / cummax

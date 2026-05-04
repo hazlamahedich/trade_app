@@ -38,6 +38,7 @@ class WalkForwardProgressEvent(SSEEvent):
     oos_sharpe: float
     oos_return: float
     status: Literal["OK", "INCONCLUSIVE", "DEGRADED"]
+    message: str = ""
 
 
 class WalkForwardCompletedEvent(SSEEvent):

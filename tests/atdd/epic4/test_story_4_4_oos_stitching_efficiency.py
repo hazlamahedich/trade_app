@@ -83,7 +83,6 @@ class TestStory44OOSStitching:
         # Then: status is "unreliable" (UNRELIABLE flag per WFO-5)
         assert status == "unreliable"
 
-
     @pytest.mark.test_id("4.4-ATDD-006")
     @pytest.mark.p1
     async def test_oos_curve_with_baseline_comparison(self, wf_windows):
@@ -114,7 +113,6 @@ class TestStory44OOSStitching:
         assert len(baseline) == len(stitched)
         assert baseline.iloc[0] == pytest.approx(stitched.iloc[0])
         assert (baseline.index == stitched.index).all()
-
 
     @pytest.mark.test_id("4.4-ATDD-007")
     @pytest.mark.p1
@@ -162,8 +160,9 @@ class TestStory44OOSStitching:
     @pytest.mark.p0
     async def test_risk_adjusted_wfe(self, wf_result):
         # Given: a full WalkForwardResult
-        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
         import pandas as pd
+
+        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
 
         ohlcv = pd.DataFrame({"close": range(1000)})
 
@@ -178,8 +177,9 @@ class TestStory44OOSStitching:
     @pytest.mark.p1
     async def test_ev_significance_and_decay(self, wf_result):
         # Given: a full WalkForwardResult
-        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
         import pandas as pd
+
+        from trade_advisor.backtest.walkforward.stitch import build_stitched_result
 
         ohlcv = pd.DataFrame({"close": range(1000)})
 

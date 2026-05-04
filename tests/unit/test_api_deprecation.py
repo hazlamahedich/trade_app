@@ -10,6 +10,7 @@ class TestApiDeprecation:
     @pytest.mark.p3
     def test_app_is_same_as_main_app(self):
         from trade_advisor.main import app as main_app
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             from trade_advisor.api import app
@@ -21,6 +22,7 @@ class TestApiDeprecation:
         import importlib
 
         import trade_advisor.api
+
         with pytest.warns(DeprecationWarning, match="Use trade_advisor.main"):
             importlib.reload(trade_advisor.api)
 
@@ -30,4 +32,5 @@ class TestApiDeprecation:
         from fastapi import FastAPI
 
         from trade_advisor.main import app
+
         assert isinstance(app, FastAPI)

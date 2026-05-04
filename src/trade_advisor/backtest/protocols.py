@@ -10,15 +10,12 @@ engine wraps that internally in its own bar-by-bar iterator.
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+from typing import Protocol, TypedDict, runtime_checkable
 
 import pandas as pd
 
 from trade_advisor.backtest.engine import BacktestResult
 from trade_advisor.config import BacktestConfig
-
-
-from typing import Protocol, runtime_checkable, TypedDict
 
 
 class MetricMetadata(TypedDict):

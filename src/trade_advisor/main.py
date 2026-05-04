@@ -92,9 +92,11 @@ from trade_advisor.web.routes.experiments import router as experiments_router  #
 app.include_router(experiments_router)
 app.include_router(experiments_api_router)
 
+from trade_advisor.web.routes.walkforward import api_router as walkforward_api_router  # noqa: E402
 from trade_advisor.web.routes.walkforward import router as walkforward_router  # noqa: E402
 
 app.include_router(walkforward_router)
+app.include_router(walkforward_api_router)
 
 
 @app.get("/health")
